@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: gie-taxi-taxi
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    disk:
+      name: gie-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /data/gie.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000

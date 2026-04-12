@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Guide Déploiement — GIE TAXI TAXI sur Render.com</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --or: #F5A623; --or2: #C47B0A; --or3: #FFD580;
+  --noir: #0D0800; --brun: #2C1810; --brun2: #3D2414; --brun3: #5C3A20;
+  --vert: #27AE60; --vert2: #2ECC71;
+  --rouge: #C0392B; --rouge2: #E74C3C;
+  --bleu: #3B82F6; --bleu2: #60A5FA;
+  --tx: #FFF3DC; --tx2: #B8956A; --tx3: #7A5535;
+  --border: rgba(245,166,35,.2); --border2: rgba(245,166,35,.4);
+  --surface: rgba(44,24,16,.9); --surface2: rgba(61,36,20,.85);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body {
+  font-family:'Space Grotesk',sans-serif;
+  background:var(--noir);
+  color:var(--tx);
+  line-height:1.7;
+  font-size:15px;
+}
+body::before {
+  content:'';position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse at 5% 5%,rgba(245,166,35,.1) 0,transparent 40%),
+             radial-gradient(ellipse at 95% 95%,rgba(192,57,43,.07) 0,transparent 40%);
+  pointer-events:none;
+}
+
+/* ─── HEADER ─── */
+.hero {
+  position:relative;z-index:1;
+  background:linear-gradient(135deg,#1a0a00,#2C1810);
+  border-bottom:3px solid transparent;
+  border-image:linear-gradient(90deg,var(--rouge) 25%,var(--or) 25%,var(--or) 50%,var(--vert) 50%,var(--vert) 75%,var(--rouge) 75%) 1;
+  padding:50px 40px;
+  text-align:center;
+}
+.hero-flag {
+  display:flex;justify-content:center;gap:8px;margin-bottom:20px;
+}
+.flag-band {width:40px;height:26px;border-radius:4px;}
+.flag-v{background:#3a7d44;}.flag-y{background:#fcd116;position:relative;display:flex;align-items:center;justify-content:center;}.flag-r{background:#c8102e;}
+.flag-star{color:#3a7d44;font-size:14px;line-height:1;}
+.hero-icon{font-size:70px;margin-bottom:16px;filter:drop-shadow(0 0 30px rgba(245,166,35,.5));animation:float 3s ease-in-out infinite;}
+.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(28px,5vw,48px);color:var(--or);letter-spacing:-1px;margin-bottom:8px;}
+.hero-sub{font-size:13px;color:var(--tx2);letter-spacing:2px;text-transform:uppercase;margin-bottom:20px;}
+.hero-tags{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.tag{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:11px;color:var(--tx2);}
+
+/* ─── LAYOUT ─── */
+.container{max-width:900px;margin:0 auto;padding:0 24px;}
+.content{position:relative;z-index:1;padding:40px 0 80px;}
+
+/* ─── SECTION ─── */
+.section{margin-bottom:50px;}
+.section-num {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--or),var(--or2));
+  color:var(--noir);
+  font-family:'Syne',sans-serif;font-weight:800;font-size:16px;
+  margin-right:12px;flex-shrink:0;
+  box-shadow:0 4px 14px rgba(245,166,35,.3);
+}
+.section-header{display:flex;align-items:center;margin-bottom:20px;}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:22px;color:var(--tx);}
+.section-desc{color:var(--tx2);font-size:13px;margin-top:3px;}
+
+/* ─── CARDS ─── */
+.card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:24px;
+  margin-bottom:16px;
+  position:relative;
+  overflow:hidden;
+}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--or),var(--or3));}
+.card-alt::before{background:linear-gradient(90deg,var(--vert),var(--vert2));}
+.card-blue::before{background:linear-gradient(90deg,var(--bleu),var(--bleu2));}
+.card-red::before{background:linear-gradient(90deg,var(--rouge),var(--rouge2));}
+
+/* ─── STEPS ─── */
+.steps{counter-reset:step;}
+.step {
+  display:flex;gap:18px;padding:18px 0;
+  border-bottom:1px solid var(--border);
+  counter-increment:step;
+  align-items:flex-start;
+}
+.step:last-child{border-bottom:none;}
+.step-num {
+  min-width:32px;height:32px;border-radius:8px;
+  background:var(--surface2);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+  color:var(--or);flex-shrink:0;margin-top:2px;
+}
+.step-content{}
+.step-title{font-family:'Syne',sans-serif;font-weight:600;font-size:15px;margin-bottom:5px;}
+.step-body{color:var(--tx2);font-size:13px;line-height:1.7;}
+.step-body b{color:var(--tx);}
+.step-body a{color:var(--or);text-decoration:none;}
+.step-body a:hover{text-decoration:underline;}
+
+/* ─── CODE ─── */
+.code-block {
+  background:#050300;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px 18px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  line-height:1.8;
+  margin:10px 0;
+  overflow-x:auto;
+  position:relative;
+}
+.code-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;display:block;}
+.cmd{color:var(--vert2);}
+.cmt{color:var(--tx3);}
+.str{color:var(--or);}
+.kw{color:var(--bleu2);}
+.var{color:var(--or3);}
+.copy-btn {
+  position:absolute;top:10px;right:10px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:5px;padding:3px 9px;font-size:10px;
+  cursor:pointer;color:var(--tx2);font-family:'Space Grotesk',sans-serif;
+  transition:all .15s;
+}
+.copy-btn:hover{border-color:var(--or);color:var(--or);}
+
+/* ─── INFO BOXES ─── */
+.info{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:8px;padding:12px 15px;margin:12px 0;font-size:13px;color:var(--or);display:flex;gap:10px;align-items:flex-start;}
+.warn{background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.2);border-radius:8px;padding:12px 15px;margin:12px 0;font-size:13px;color:#f87171;display:flex;gap:10px;align-items:flex-start;}
+.success{background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.2);border-radius:8px;padding:12px 15px;margin:12px 0;font-size:13px;color:var(--vert2);display:flex;gap:10px;align-items:flex-start;}
+.info-icon,.warn-icon,.success-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+
+/* ─── TABLE ─── */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0;}
+.data-table th{padding:8px 12px;background:rgba(0,0,0,.3);color:var(--tx2);font-size:11px;letter-spacing:1px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border);font-weight:500;}
+.data-table td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:rgba(245,166,35,.02);}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;}
+.b-or{background:rgba(245,166,35,.15);color:var(--or);}
+.b-v{background:rgba(39,174,96,.15);color:var(--vert2);}
+.b-r{background:rgba(192,57,43,.15);color:#f87171;}
+.b-b{background:rgba(59,130,246,.15);color:var(--bleu2);}
+
+/* ─── ARCHITECTURE DIAGRAM ─── */
+.arch{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:12px;padding:24px;margin:14px 0;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;}
+.arch-title{font-family:'Syne',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tx2);margin-bottom:14px;}
+.arch-box{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 12px;margin:2px;}
+.arch-or{border-color:var(--or);color:var(--or);}
+.arch-v{border-color:var(--vert);color:var(--vert2);}
+.arch-b{border-color:var(--bleu);color:var(--bleu2);}
+.arch-r{border-color:var(--rouge);color:#f87171;}
+.arch-arrow{color:var(--tx3);margin:0 8px;}
+
+/* ─── CHECKLIST ─── */
+.checklist{list-style:none;padding:0;}
+.checklist li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--tx2);}
+.checklist li:last-child{border-bottom:none;}
+.checklist li::before{content:'✓';color:var(--vert2);font-weight:700;flex-shrink:0;margin-top:1px;}
+
+/* ─── FEATURE GRID ─── */
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0;}
+.feature-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.feature-icon{font-size:22px;margin-bottom:6px;}
+.feature-title{font-family:'Syne',sans-serif;font-weight:600;font-size:13px;margin-bottom:4px;}
+.feature-desc{font-size:11px;color:var(--tx2);}
+
+/* ─── LINK BUTTON ─── */
+.link-btn {
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--or),var(--or2));
+  color:var(--noir);border:none;border-radius:8px;
+  padding:10px 20px;font-family:'Syne',sans-serif;font-weight:700;
+  font-size:13px;cursor:pointer;text-decoration:none;
+  transition:all .2s;box-shadow:0 4px 14px rgba(245,166,35,.3);
+  margin:4px;
+}
+.link-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,166,35,.4);}
+.link-btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--tx);}
+.link-btn-ghost:hover{border-color:var(--or);color:var(--or);}
+.link-btn-v{background:linear-gradient(135deg,var(--vert),#1e8449);color:#fff;}
+.link-btn-b{background:linear-gradient(135deg,var(--bleu),#1d4ed8);color:#fff;}
+
+/* ─── DIVIDER ─── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:30px 0;}
+
+/* ─── FOOTER ─── */
+.footer{background:var(--brun);border-top:3px solid transparent;border-image:linear-gradient(90deg,var(--rouge) 33%,var(--or) 33%,var(--or) 66%,var(--vert) 66%) 1;padding:30px;text-align:center;}
+.footer-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--or);margin-bottom:6px;}
+.footer-sub{font-size:11px;color:var(--tx2);letter-spacing:2px;}
+
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-flag">
+    <div class="flag-band flag-v"></div>
+    <div class="flag-band flag-y"><span class="flag-star">★</span></div>
+    <div class="flag-band flag-r"></div>
+  </div>
+  <div class="hero-icon">🚖</div>
+  <div class="hero-title">GIE TAXI TAXI SÉNÉGAL</div>
+  <div class="hero-sub">Guide complet de déploiement — Render.com</div>
+  <div class="hero-tags">
+    <div class="tag">⚡ Données en temps réel</div>
+    <div class="tag">📱 Version mobile</div>
+    <div class="tag">🔒 Sécurisé JWT</div>
+    <div class="tag">💾 SQLite persistant</div>
+    <div class="tag">🆓 Gratuit sur Render</div>
+    <div class="tag">🌍 Accessible partout</div>
+  </div>
+</div>
+
+<div class="content">
+<div class="container">
+
+<!-- ARCHITECTURE -->
+<div class="section" style="margin-top:40px">
+  <div class="section-header">
+    <div class="section-num">★</div>
+    <div>
+      <div class="section-title">Comment ça fonctionne</div>
+      <div class="section-desc">Architecture complète de l'application</div>
+    </div>
+  </div>
+
+  <div class="arch">
+    <div class="arch-title">Architecture technique</div>
+    <div style="text-align:center;line-height:2.8">
+      <div style="margin-bottom:8px">
+        <span class="arch-box arch-or">📱 Téléphone membre</span>
+        <span class="arch-box arch-or">💻 PC caissier</span>
+        <span class="arch-box arch-or">🖥️ Directeur</span>
+      </div>
+      <div style="color:var(--tx3);font-size:18px">↕ HTTPS (Internet 4G/WiFi)</div>
+      <div style="margin:6px 0">
+        <span class="arch-box arch-b">🌐 Render.com — Serveur Node.js</span>
+      </div>
+      <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin:6px 0">
+        <span class="arch-box arch-v">⚙️ Express API REST</span>
+        <span class="arch-box arch-v">🔐 JWT Auth</span>
+        <span class="arch-box arch-v">📦 Compression</span>
+      </div>
+      <div style="color:var(--tx3);font-size:18px">↕</div>
+      <div>
+        <span class="arch-box arch-r">💾 SQLite — /data/gie.db — Disque persistant Render 1GB</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="success"><span class="success-icon">✅</span><div>Toutes les données sont <b>sauvegardées instantanément</b> sur disque. Quand un caissier enregistre un versement, tous les membres connectés voient la mise à jour en rafraîchissant la page.</div></div>
+
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-icon">🔋</div><div class="feature-title">Crédits en temps réel</div><div class="feature-desc">Un versement enregistré est visible immédiatement pour tous</div></div>
+    <div class="feature-card"><div class="feature-icon">💳</div><div class="feature-title">Cotisations instantanées</div><div class="feature-desc">Le membre voit sa cotisation dès qu'elle est saisie</div></div>
+    <div class="feature-card"><div class="feature-icon">📱</div><div class="feature-title">PWA Mobile</div><div class="feature-desc">Installer comme une appli sur iPhone et Android</div></div>
+    <div class="feature-card"><div class="feature-icon">🔒</div><div class="feature-title">Sécurité PIN</div><div class="feature-desc">Chaque rôle voit uniquement ce qui le concerne</div></div>
+    <div class="feature-card"><div class="feature-icon">🌍</div><div class="feature-title">Accessible partout</div><div class="feature-desc">Dakar, Thiès, Saint-Louis — partout avec 4G</div></div>
+    <div class="feature-card"><div class="feature-icon">🆓</div><div class="feature-title">Gratuit Render</div><div class="feature-desc">Plan Free = 0 FCFA/mois (avec disque 7$/mois)</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ÉTAPE 1 — GITHUB -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div>
+      <div class="section-title">Créer un compte GitHub (gratuit)</div>
+      <div class="section-desc">Stocker le code source — nécessaire pour Render</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Aller sur GitHub.com</div>
+          <div class="step-body">Ouvrir <a href="https://github.com" target="_blank">github.com</a> dans votre navigateur et cliquer sur <b>"Sign Up"</b>. Utiliser votre email personnel.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Créer un nouveau dépôt (repository)</div>
+          <div class="step-body">Cliquer sur <b>"New repository"</b> → Nommer: <b>gie-taxi-taxi</b> → Choisir <b>Private</b> → Cliquer <b>"Create repository"</b></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Uploader les fichiers du projet</div>
+          <div class="step-body">Dans la page du dépôt, cliquer sur <b>"uploading an existing file"</b>. Glisser-déposer les fichiers du projet (voir structure ci-dessous).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-alt">
+    <div class="code-label">📁 STRUCTURE DU PROJET À UPLOADER SUR GITHUB</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2.2;color:var(--tx2)">
+      <div><span style="color:var(--or)">gie-taxi-taxi/</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--vert2)">├── package.json</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Dépendances Node.js</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--vert2)">├── server.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Serveur Express + API</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--vert2)">├── db.js</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Base de données SQLite</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--vert2)">├── render.yaml</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Config auto Render</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--vert2)">├── .gitignore</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Exclure node_modules</span></div>
+      <div>&nbsp;&nbsp;<span style="color:var(--or)">└── public/</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--vert2)">├── index.html</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Application PWA frontend</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--vert2)">└── manifest.json</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tx3)">← Config installation mobile</span></div>
+    </div>
+  </div>
+
+  <div class="info"><span class="info-icon">💡</span><div>Ne pas uploader le dossier <b>node_modules/</b> ni le fichier <b>gie.db</b> — ils sont dans .gitignore et seront créés automatiquement sur Render.</div></div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ÉTAPE 2 — RENDER -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div>
+      <div class="section-title">Déployer sur Render.com</div>
+      <div class="section-desc">Hébergement gratuit avec disque persistant pour SQLite</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Créer un compte Render</div>
+          <div class="step-body">Aller sur <a href="https://render.com" target="_blank">render.com</a> → Cliquer <b>"Get Started for Free"</b> → Se connecter avec votre compte <b>GitHub</b> (même email).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Créer un nouveau Web Service</div>
+          <div class="step-body">Dashboard Render → <b>"New +"</b> → <b>"Web Service"</b> → Connecter votre repository GitHub <b>gie-taxi-taxi</b>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Configurer le service</div>
+          <div class="step-body">
+            Remplir les champs comme ceci :
+          </div>
+          <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:14px;margin-top:10px">
+            <table class="data-table">
+              <tr><th>Champ</th><th>Valeur à mettre</th></tr>
+              <tr><td>Name</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">gie-taxi-taxi</code></td></tr>
+              <tr><td>Region</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">Frankfurt (EU) — plus proche d'Afrique</code></td></tr>
+              <tr><td>Branch</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">main</code></td></tr>
+              <tr><td>Runtime</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">Node</code></td></tr>
+              <tr><td>Build Command</td><td><code style="color:var(--vert2);font-family:'JetBrains Mono',monospace">npm install</code></td></tr>
+              <tr><td>Start Command</td><td><code style="color:var(--vert2);font-family:'JetBrains Mono',monospace">node server.js</code></td></tr>
+              <tr><td>Plan</td><td><span class="badge b-v">Free (0$/mois)</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Ajouter un Disque persistant (IMPORTANT pour SQLite)</div>
+          <div class="step-body">
+            Sans disque, les données se perdent à chaque redémarrage ! <br>
+            Dans le panneau <b>"Disks"</b> du service → <b>"Add Disk"</b> :
+          </div>
+          <div style="background:rgba(0,0,0,.3);border-radius:8px;padding:14px;margin-top:10px">
+            <table class="data-table">
+              <tr><th>Champ</th><th>Valeur</th></tr>
+              <tr><td>Name</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">gie-data</code></td></tr>
+              <tr><td>Mount Path</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">/data</code></td></tr>
+              <tr><td>Size</td><td><code style="color:var(--or);font-family:'JetBrains Mono',monospace">1 GB</code></td></tr>
+              <tr><td>Coût</td><td><span class="badge b-b">~7 USD/mois ≈ 4 200 FCFA/mois</span></td></tr>
+            </table>
+          </div>
+          <div class="warn" style="margin-top:10px"><span class="warn-icon">⚠️</span><div>Le disque persistant est <b>indispensable</b> pour que les données (membres, cotisations, crédits) ne se perdent pas. C'est le seul coût de l'application : <b>~4 200 FCFA/mois</b>.</div></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Configurer les variables d'environnement</div>
+          <div class="step-body">Onglet <b>"Environment"</b> → <b>"Add Environment Variable"</b> → Ajouter ces 3 variables :</div>
+          <div class="code-block" style="margin-top:10px">
+            <span class="var">DB_PATH</span> = <span class="str">/data/gie.db</span><br>
+            <span class="var">JWT_SECRET</span> = <span class="str">GieTaxiTaxi2026SenegalSecretKey!X7k</span><br>
+            <span class="var">NODE_ENV</span> = <span class="str">production</span>
+          </div>
+          <div class="info" style="margin-top:8px"><span class="info-icon">🔐</span><div>Changer JWT_SECRET par une longue chaîne aléatoire de votre choix. C'est la clé de sécurité de l'application.</div></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <div class="step-title">Lancer le déploiement</div>
+          <div class="step-body">Cliquer <b>"Create Web Service"</b>. Render va automatiquement :<br>
+            ✅ Installer les dépendances Node.js<br>
+            ✅ Démarrer le serveur<br>
+            ✅ Créer la base de données SQLite et importer les données<br>
+            ✅ Vous donner une URL publique du type : <b>gie-taxi-taxi.onrender.com</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ÉTAPE 3 — ACCÈS MEMBRES -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div>
+      <div class="section-title">Donner l'accès aux membres</div>
+      <div class="section-desc">Partager le lien — chaque membre se connecte avec son téléphone + PIN</div>
+    </div>
+  </div>
+
+  <div class="card card-alt">
+    <div class="step-title" style="font-size:16px;margin-bottom:14px">📲 Comment partager l'application</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">📣</div>
+        <div class="step-content">
+          <div class="step-title">Envoyer le lien par WhatsApp</div>
+          <div class="step-body">Copier le lien Render et l'envoyer dans le groupe WhatsApp du GIE :<br>
+          <code style="color:var(--or);font-family:'JetBrains Mono',monospace">https://gie-taxi-taxi.onrender.com</code></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">📱</div>
+        <div class="step-content">
+          <div class="step-title">Installer sur le téléphone (PWA)</div>
+          <div class="step-body">
+            <b>Sur Android (Chrome) :</b> Ouvrir le lien → Menu (⋮) → <b>"Ajouter à l'écran d'accueil"</b><br>
+            <b>Sur iPhone (Safari) :</b> Ouvrir le lien → Partager (□↑) → <b>"Sur l'écran d'accueil"</b><br>
+            L'icône 🚖 apparaîtra comme une vraie application !
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔑</div>
+        <div class="step-content">
+          <div class="step-title">Connexion des membres</div>
+          <div class="step-body">
+            Chaque membre entre son <b>numéro de téléphone</b> + son <b>PIN</b>.<br>
+            PIN par défaut pour tous les membres : <code style="color:var(--or)">1234</code><br>
+            Chaque membre peut changer son PIN après connexion.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-blue">
+    <div class="step-title" style="font-size:16px;margin-bottom:14px">🔑 Comptes et Rôles</div>
+    <table class="data-table">
+      <thead><tr><th>Rôle</th><th>Login</th><th>PIN par défaut</th><th>Accès</th></tr></thead>
+      <tbody>
+        <tr><td>👤 Membre</td><td>Son numéro de téléphone</td><td><code style="color:var(--or)">1234</code></td><td>Ses cotisations, ses crédits, liste membres</td></tr>
+        <tr><td>💰 Caissier</td><td><code style="color:var(--or)">caissier</code></td><td><code style="color:var(--or)">2025</code></td><td>Encaissement, cotisations, ventes, crédits</td></tr>
+        <tr><td>🔑 Directeur</td><td><code style="color:var(--or)">directeur</code></td><td><code style="color:var(--or)">0000</code></td><td>Tout + gestion membres, produits, banque</td></tr>
+        <tr><td>👑 Président</td><td><code style="color:var(--or)">president</code></td><td><code style="color:var(--or)">0000</code></td><td>Accès total + validation 2ème crédit</td></tr>
+      </tbody>
+    </table>
+    <div class="warn" style="margin-top:12px"><span class="warn-icon">🔐</span><div>Changer les PINs par défaut immédiatement après le premier déploiement ! Utiliser la fonction <b>"Changer PIN"</b> dans l'application.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ÉTAPE 4 — DOMAINE PERSONNALISÉ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div>
+      <div class="section-title">Domaine personnalisé (optionnel)</div>
+      <div class="section-desc">Avoir une adresse comme <b>gietaxitaxi.sn</b> au lieu de onrender.com</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">💰</div>
+        <div class="step-content">
+          <div class="step-title">Acheter un nom de domaine sénégalais</div>
+          <div class="step-body">
+            Chez <a href="https://www.nic.sn" target="_blank">NIC.SN (SONATEL)</a> : domaine .sn ≈ <b>15 000 FCFA/an</b><br>
+            Exemple : <code style="color:var(--or)">gietaxitaxi.sn</code> ou <code style="color:var(--or)">taxitaxisenegal.com</code>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔗</div>
+        <div class="step-content">
+          <div class="step-title">Connecter le domaine à Render</div>
+          <div class="step-body">
+            Render → Service → <b>"Settings"</b> → <b>"Custom Domain"</b> → Ajouter votre domaine.<br>
+            Render vous donnera un enregistrement DNS CNAME à configurer chez votre registrar.
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔒</div>
+        <div class="step-content">
+          <div class="step-title">HTTPS automatique (certificat SSL)</div>
+          <div class="step-body">
+            Render génère automatiquement un certificat SSL gratuit (Let's Encrypt).<br>
+            Votre application sera accessible en <b>https://</b> — connexion sécurisée.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- CONTENU DU render.yaml -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div>
+      <div class="section-title">Fichiers de configuration</div>
+      <div class="section-desc">Copier exactement ces contenus dans vos fichiers</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="code-label">📄 render.yaml — Déploiement automatique</div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+<span class="kw">services</span>:
+  - <span class="kw">type</span>: <span class="str">web</span>
+    <span class="kw">name</span>: <span class="str">gie-taxi-taxi</span>
+    <span class="kw">env</span>: <span class="str">node</span>
+    <span class="kw">plan</span>: <span class="str">free</span>
+    <span class="kw">buildCommand</span>: <span class="cmd">npm install</span>
+    <span class="kw">startCommand</span>: <span class="cmd">node server.js</span>
+    <span class="kw">disk</span>:
+      <span class="kw">name</span>: <span class="str">gie-data</span>
+      <span class="kw">mountPath</span>: <span class="str">/data</span>
+      <span class="kw">sizeGB</span>: <span class="var">1</span>
+    <span class="kw">envVars</span>:
+      - <span class="kw">key</span>: <span class="str">NODE_ENV</span>
+        <span class="kw">value</span>: <span class="str">production</span>
+      - <span class="kw">key</span>: <span class="str">DB_PATH</span>
+        <span class="kw">value</span>: <span class="str">/data/gie.db</span>
+      - <span class="kw">key</span>: <span class="str">JWT_SECRET</span>
+        <span class="kw">generateValue</span>: <span class="var">true</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="code-label">📄 package.json — Dépendances</div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+{
+  <span class="str">"name"</span>: <span class="str">"gie-taxi-taxi"</span>,
+  <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+  <span class="str">"scripts"</span>: {
+    <span class="str">"start"</span>: <span class="str">"node server.js"</span>
+  },
+  <span class="str">"dependencies"</span>: {
+    <span class="str">"express"</span>: <span class="str">"^4.18.2"</span>,
+    <span class="str">"better-sqlite3"</span>: <span class="str">"^9.4.3"</span>,
+    <span class="str">"bcryptjs"</span>: <span class="str">"^2.4.3"</span>,
+    <span class="str">"jsonwebtoken"</span>: <span class="str">"^9.0.2"</span>,
+    <span class="str">"cors"</span>: <span class="str">"^2.8.5"</span>,
+    <span class="str">"compression"</span>: <span class="str">"^1.7.4"</span>,
+    <span class="str">"helmet"</span>: <span class="str">"^7.1.0"</span>
+  },
+  <span class="str">"engines"</span>: { <span class="str">"node"</span>: <span class="str">">=18.0.0"</span> }
+}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="code-label">📄 .gitignore</div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+<span class="cmt"># Dépendances</span>
+node_modules/
+
+<span class="cmt"># Base de données locale</span>
+data/
+*.db
+
+<span class="cmt"># Variables d'environnement</span>
+.env
+
+<span class="cmt"># macOS</span>
+.DS_Store
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- COÛTS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div>
+      <div class="section-title">Coûts et alternatives</div>
+      <div class="section-desc">Comparaison des solutions d'hébergement</div>
+    </div>
+  </div>
+
+  <table class="data-table" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+    <thead>
+      <tr><th>Solution</th><th>Coût/mois</th><th>Données</th><th>Vitesse SN</th><th>Recommandation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Render.com (Free + Disk)</b></td>
+        <td><span class="badge b-or">~4 200 FCFA</span></td>
+        <td>✅ Persistant 1GB</td>
+        <td>⚡⚡⚡</td>
+        <td><span class="badge b-v">★ RECOMMANDÉ</span></td>
+      </tr>
+      <tr>
+        <td>Railway.app</td>
+        <td><span class="badge b-b">~3 500 FCFA</span></td>
+        <td>✅ Volume persistant</td>
+        <td>⚡⚡⚡</td>
+        <td><span class="badge b-b">Bonne alternative</span></td>
+      </tr>
+      <tr>
+        <td>Heroku (Eco)</td>
+        <td><span class="badge b-b">~4 000 FCFA</span></td>
+        <td>⚠️ Add-on payant</td>
+        <td>⚡⚡</td>
+        <td><span class="badge b-or">Acceptable</span></td>
+      </tr>
+      <tr>
+        <td>Vercel / Netlify</td>
+        <td><span class="badge b-v">Gratuit</span></td>
+        <td>❌ Serverless = no SQLite</td>
+        <td>⚡⚡⚡⚡</td>
+        <td><span class="badge b-r">Non compatible</span></td>
+      </tr>
+      <tr>
+        <td>VPS Contabo</td>
+        <td><span class="badge b-or">~3 600 FCFA</span></td>
+        <td>✅ Illimité</td>
+        <td>⚡⚡</td>
+        <td><span class="badge b-b">Pour tech averti</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="success" style="margin-top:14px"><span class="success-icon">💡</span><div><b>Conseil:</b> Commencer avec Render.com — la mise en ligne est la plus simple. Si le GIE grandit, migrer vers un VPS dédié à ~3 600 FCFA/mois avec stockage illimité.</div></div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PROBLÈMES FRÉQUENTS -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div>
+      <div class="section-title">Problèmes fréquents et solutions</div>
+      <div class="section-desc">Ce qui peut bloquer et comment résoudre</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <div class="step-content">
+          <div class="step-title">Application lente au premier chargement</div>
+          <div class="step-body"><b>Cause:</b> Le plan Free de Render "dort" après 15 min d'inactivité. Premier chargement = 30-60 secondes.<br><b>Solution:</b> Passer au plan Starter (7$/mois) ou utiliser <a href="https://uptimerobot.com" target="_blank">UptimeRobot.com</a> (gratuit) pour "pinger" l'app toutes les 10 minutes.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <div class="step-content">
+          <div class="step-title">Données perdues après redéploiement</div>
+          <div class="step-body"><b>Cause:</b> Oubli du disque persistant.<br><b>Solution:</b> Vérifier que le Disk est bien configuré sur <code style="color:var(--or)">/data</code> et que <code style="color:var(--or)">DB_PATH=/data/gie.db</code> est défini.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <div class="step-content">
+          <div class="step-title">Erreur "Cannot find module 'better-sqlite3'"</div>
+          <div class="step-body"><b>Cause:</b> Build Node.js incompatible avec better-sqlite3.<br><b>Solution:</b> Dans Render Settings → <b>Node Version</b> → mettre <code style="color:var(--or)">18.19.0</code> exactement.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <div class="step-content">
+          <div class="step-title">Membre ne peut pas se connecter</div>
+          <div class="step-body"><b>Cause:</b> Le numéro de téléphone n'est pas dans la base de données.<br><b>Solution:</b> Le Directeur ajoute le membre dans <b>Gestion Membres</b> → <b>Nouveau Membre</b>. PIN par défaut: 1234</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <div class="step-content">
+          <div class="step-title">L'application ne charge pas sur iPhone</div>
+          <div class="step-body"><b>Cause:</b> Safari nécessite HTTPS pour les PWA.<br><b>Solution:</b> S'assurer que Render a bien généré le certificat SSL (cadenas 🔒 dans le navigateur).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SÉCURITÉ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div>
+      <div class="section-title">Sécurité — À faire impérativement</div>
+      <div class="section-desc">Protéger les données de tous les membres</div>
+    </div>
+  </div>
+
+  <div class="card card-red">
+    <ul class="checklist">
+      <li>Changer le PIN du Directeur (0000 → PIN secret fort à 6 chiffres) dès le premier lancement</li>
+      <li>Changer le PIN du Caissier (2025 → nouveau PIN)</li>
+      <li>Changer le PIN du Président</li>
+      <li>Informer chaque membre de changer son PIN 1234 après première connexion</li>
+      <li>Ne JAMAIS partager le compte GitHub avec des personnes extérieures au bureau</li>
+      <li>Sauvegarder régulièrement la base de données (télécharger gie.db via Render Shell)</li>
+      <li>Utiliser HTTPS uniquement (ne jamais utiliser l'URL http://)</li>
+      <li>Changer JWT_SECRET si vous soupçonnez une compromission</li>
+    </ul>
+  </div>
+
+  <div class="card card-alt" style="margin-top:14px">
+    <div class="step-title" style="margin-bottom:10px">💾 Sauvegarder la base de données</div>
+    <div class="step-body" style="font-size:13px;color:var(--tx2)">Render → Votre Service → <b>"Shell"</b> → Entrer cette commande :</div>
+    <div class="code-block" style="margin-top:10px">
+      <span class="cmt"># Voir la taille de la base</span><br>
+      <span class="cmd">ls -lh /data/gie.db</span><br><br>
+      <span class="cmt"># La base est aussi accessible via Render Disk backups</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- RÉSUMÉ -->
+<div class="section">
+  <div class="card" style="background:linear-gradient(135deg,var(--brun),var(--brun2));border-color:var(--border2);text-align:center;padding:32px">
+    <div style="font-size:40px;margin-bottom:12px">🚖</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:20px;color:var(--or);margin-bottom:8px">Récapitulatif en 5 minutes</div>
+    <div style="color:var(--tx2);font-size:13px;margin-bottom:24px">Les étapes essentielles pour mettre en ligne</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;text-align:left;margin-bottom:24px">
+      <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:14px">
+        <div style="font-size:20px;margin-bottom:6px">1️⃣</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--or)">GitHub</div>
+        <div style="font-size:11px;color:var(--tx2)">Créer compte + uploader les 6 fichiers du projet</div>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:14px">
+        <div style="font-size:20px;margin-bottom:6px">2️⃣</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--or)">Render</div>
+        <div style="font-size:11px;color:var(--tx2)">Créer Web Service + ajouter Disk /data 1GB</div>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:14px">
+        <div style="font-size:20px;margin-bottom:6px">3️⃣</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--or)">Variables</div>
+        <div style="font-size:11px;color:var(--tx2)">DB_PATH=/data/gie.db + JWT_SECRET</div>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:14px">
+        <div style="font-size:20px;margin-bottom:6px">4️⃣</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--or)">Déployer</div>
+        <div style="font-size:11px;color:var(--tx2)">Cliquer Deploy → attendre 3 minutes → c'est en ligne !</div>
+      </div>
+      <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:14px">
+        <div style="font-size:20px;margin-bottom:6px">5️⃣</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--or)">Partager</div>
+        <div style="font-size:11px;color:var(--tx2)">Envoyer le lien WhatsApp aux 84 membres</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+      <a href="https://github.com" target="_blank" class="link-btn">🐙 Aller sur GitHub</a>
+      <a href="https://render.com" target="_blank" class="link-btn link-btn-b">🚀 Aller sur Render</a>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div class="footer">
+  <div class="footer-logo">🚖 GIE TAXI TAXI SÉNÉGAL</div>
+  <div class="footer-sub">Guide de déploiement complet · 2026</div>
+</div>
+
+<script>
+function copyCode(btn){
+  const block=btn.parentElement;
+  const text=block.innerText.replace('Copier\n','').trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='Copié ✓';btn.style.color='var(--vert2)';btn.style.borderColor='var(--vert2)';
+    setTimeout(()=>{btn.textContent='Copier';btn.style.color='';btn.style.borderColor='';},2000);
+  });
+}
+</script>
+</body>
+</html>
