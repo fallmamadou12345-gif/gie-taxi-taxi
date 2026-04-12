@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: gie-taxi-taxi
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm rebuild better-sqlite3
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
