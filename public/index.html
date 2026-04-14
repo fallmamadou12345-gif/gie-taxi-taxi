@@ -1941,50 +1941,118 @@ function renderSCHist(){
 
 // NOUVELLE VENTE
 function renderNouvelleVente(el){
-  let vType='membre';
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Nouvelle Vente</div><div class="page-sub">Membre GIE ou Client externe</div></div>
+  <div class="page-header"><div class="page-title">Nouvelle Vente</div><div class="page-sub">Membre GIE · Client externe · Crédit ou Comptant</div></div>
+
+  <!-- TYPE SELECTOR -->
   <div class="vtype-grid">
-    <div class="vtype-card active" id="vt-m" onclick="setVType('membre')"><div class="vtype-icon">👥</div><div class="vtype-title">MEMBRE GIE</div><div class="vtype-desc">Pas de garant · Vérification auto</div></div>
-    <div class="vtype-card" id="vt-e" onclick="setVType('externe')"><div class="vtype-icon">🌍</div><div class="vtype-title">CLIENT EXTERNE</div><div class="vtype-desc">Garant membre GIE requis</div></div>
+    <div class="vtype-card active" id="vt-m" onclick="setVType('membre')">
+      <div class="vtype-icon">👥</div>
+      <div class="vtype-title">MEMBRE GIE</div>
+      <div class="vtype-desc">Recherche autocomplete · Pas de garant · Vérification auto éligibilité</div>
+    </div>
+    <div class="vtype-card" id="vt-e" onclick="setVType('externe')">
+      <div class="vtype-icon">🌍</div>
+      <div class="vtype-title">CLIENT EXTERNE</div>
+      <div class="vtype-desc">Nom + Tél libres · Garant membre GIE requis pour crédit</div>
+    </div>
   </div>
+
   <div class="alert alert-danger" id="vente-warn"></div>
   <div class="alert alert-success" id="vente-ok" style="display:none"></div>
+
   <div class="form-card">
-    <div class="form-title" id="vf-title">🛒 Informations de vente — Membre</div>
-    <div class="form-grid">
-      <div class="form-group ac-wrap" style="position:relative">
-        <label id="vf-client-lbl">🔍 Rechercher le membre acheteur</label>
-        <input class="form-input" id="vf-client" placeholder="Taper nom ou numéro de téléphone..." oninput="acVenteMembre(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
-        <div class="ac-list" id="vf-client-ac"></div>
+    <div class="form-title" id="vf-title">🛒 Informations de vente — Membre GIE</div>
+
+    <!-- SECTION MEMBRE GIE -->
+    <div id="vf-section-membre">
+      <div style="background:rgba(245,166,35,.05);border:1px solid rgba(245,166,35,.15);border-radius:8px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">👤 Membre acheteur</div>
+        <div class="form-group ac-wrap" style="position:relative">
+          <input class="form-input" id="vf-client" placeholder="🔍 Taper nom ou numéro de téléphone du membre..." oninput="acVenteMembre(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
+          <div class="ac-list" id="vf-client-ac"></div>
+          <input type="hidden" id="vf-client-id">
+        </div>
+        <div id="vf-membre-info" style="display:none;margin-top:8px;font-size:11px;color:#27AE60"></div>
+      </div>
+    </div>
+
+    <!-- SECTION CLIENT EXTERNE -->
+    <div id="vf-section-externe" style="display:none">
+      <div style="background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px;letter-spacing:1px;text-transform:uppercase">🌍 Infos Client Externe</div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">
+          <div class="form-group">
+            <label>Nom complet du client</label>
+            <input class="form-input" id="vf-ext-nom" placeholder="Ex: MOUSSA DIOP" style="font-size:14px">
+          </div>
+          <div class="form-group">
+            <label>Numéro de téléphone</label>
+            <input class="form-input" id="vf-ext-tel" placeholder="Ex: 77XXXXXXX" type="tel" style="font-size:14px">
+          </div>
+        </div>
         <input type="hidden" id="vf-client-id">
       </div>
-      <div class="form-group ac-wrap" id="vf-garant-wrap" style="display:none"><label>Garant (membre actif &lt;3 mois retard)</label>
-        <input class="form-input" id="vf-garant" placeholder="Nom du garant..." oninput="acGarant(this.value)" autocomplete="off">
-        <div class="ac-list" id="vf-garant-ac"></div><input type="hidden" id="vf-garant-id">
+
+      <!-- GARANT (externe seulement) -->
+      <div style="background:rgba(192,57,43,.05);border:1px solid rgba(192,57,43,.2);border-radius:8px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase">🤝 Garant — Membre GIE (cotisations à jour, max 3 mois retard)</div>
+        <div class="form-group ac-wrap" style="position:relative">
+          <input class="form-input" id="vf-garant" placeholder="🔍 Taper nom du garant membre GIE..." oninput="acGarant(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
+          <div class="ac-list" id="vf-garant-ac"></div>
+          <input type="hidden" id="vf-garant-id">
+        </div>
+        <div id="vf-garant-info" style="display:none;margin-top:8px;font-size:11px;color:#27AE60"></div>
       </div>
-      <div class="form-group ac-wrap"><label>Produit</label>
-        <input class="form-input" id="vf-prod" placeholder="Taper produit..." oninput="acProdVente(this.value)" autocomplete="off">
-        <div class="ac-list" id="vf-prod-ac"></div><input type="hidden" id="vf-prod-id">
-      </div>
-      <div class="form-group"><label>Prix vente (FCFA)</label><input class="form-input" id="vf-prix" type="number" placeholder="40000" oninput="calcVF()"></div>
-      <div class="form-group"><label>Acompte reçu (FCFA)</label><input class="form-input" id="vf-acompte" type="number" value="0" oninput="calcVF()"></div>
-      <div class="form-group"><label>Mode</label><select class="form-input" id="vf-mode"><option>Crédit</option><option>Espèces</option><option>Wave</option><option>Orange Money</option></select></div>
-      <div class="form-group"><label>Date</label><input class="form-input" id="vf-date" type="date" value="${today()}"></div>
-      <div class="form-group"><label>Autorisé par</label><select class="form-input" id="vf-auth"><option>Caissier</option><option>Directeur</option><option>Président</option></select></div>
     </div>
-    <div id="vf-calc" style="font-size:11px;color:var(--tx2);margin-bottom:12px"></div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="saveVente()">ENREGISTRER LA VENTE</button><button class="btn btn-ghost" onclick="resetVF()">Annuler</button></div>
+
+    <!-- PRODUIT + PRIX (commun) -->
+    <div style="background:rgba(39,174,96,.05);border:1px solid rgba(39,174,96,.15);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px;letter-spacing:1px;text-transform:uppercase">🛍️ Produit vendu</div>
+      <div class="form-group ac-wrap" style="position:relative">
+        <input class="form-input" id="vf-prod" placeholder="🔍 Taper nom du produit..." oninput="acProdVente(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
+        <div class="ac-list" id="vf-prod-ac"></div>
+        <input type="hidden" id="vf-prod-id">
+      </div>
+    </div>
+
+    <!-- MONTANTS -->
+    <div class="form-grid">
+      <div class="form-group"><label>Prix de vente (FCFA)</label><input class="form-input" id="vf-prix" type="number" placeholder="40 000" oninput="calcVF()" style="font-size:14px"></div>
+      <div class="form-group"><label>Acompte reçu (FCFA)</label><input class="form-input" id="vf-acompte" type="number" value="0" oninput="calcVF()" style="font-size:14px"></div>
+      <div class="form-group"><label>Mode de paiement</label>
+        <select class="form-input" id="vf-mode">
+          <option>Crédit (échelonné)</option><option>Comptant</option>
+          <option>Espèces</option><option>Wave</option><option>Orange Money</option>
+        </select></div>
+      <div class="form-group"><label>Date</label><input class="form-input" id="vf-date" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Autorisé par</label>
+        <select class="form-input" id="vf-auth">
+          <option>Caissier</option><option>Directeur</option><option>Président</option>
+        </select></div>
+    </div>
+
+    <div id="vf-calc" style="background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.15);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;display:none"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveVente()" style="font-size:14px;padding:12px 26px">✅ ENREGISTRER LA VENTE</button>
+      <button class="btn btn-ghost" onclick="resetVF()">Annuler</button>
+    </div>
   </div>`;
 }
+
 function setVType(t){
+  window._vType=t;
   document.getElementById('vt-m').classList.toggle('active',t==='membre');
   document.getElementById('vt-e').classList.toggle('active',t==='externe');
-  document.getElementById('vf-garant-wrap').style.display=t==='externe'?'block':'none';
-  document.getElementById('vf-client-lbl').textContent=t==='membre'?'Membre acheteur':'Nom du client externe';
-  document.getElementById('vf-client').value='';document.getElementById('vf-client-id').value='';
-  document.getElementById('vente-warn').classList.remove('show');document.getElementById('vente-ok').style.display='none';
-  window._vType=t;
+  document.getElementById('vf-section-membre').style.display=t==='membre'?'block':'none';
+  document.getElementById('vf-section-externe').style.display=t==='externe'?'block':'none';
+  document.getElementById('vf-title').textContent=t==='membre'?'🛒 Informations de vente — Membre GIE':'🛒 Informations de vente — Client Externe';
+  // Reset fields
+  ['vf-client','vf-garant','vf-ext-nom','vf-ext-tel'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  ['vf-client-id','vf-garant-id'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  document.getElementById('vente-warn').classList.remove('show');
+  document.getElementById('vente-ok').style.display='none';
 }
 window._vType='membre';
 function acVenteMembre(q){
@@ -2013,10 +2081,20 @@ function acVenteMembre(q){
   ac.classList.add('show');
 }
 function selVenteMembre(id,name,elig){
-  document.getElementById('vf-client').value=name;document.getElementById('vf-client-id').value=id;document.getElementById('vf-client-ac').classList.remove('show');
+  document.getElementById('vf-client').value=name;
+  document.getElementById('vf-client-id').value=id;
+  document.getElementById('vf-client-ac').classList.remove('show');
+  const m=STATE.membres.find(x=>x.id==id);
+  const info=document.getElementById('vf-membre-info');
+  if(info&&m){
+    info.style.display='block';
+    const p=m.mois_payes||0,r2=m.mois_restants||0;
+    info.innerHTML=`<b>${name}</b> · 📞 ${m.telephone} · 💳 ${p}/12 mois · ${r2===0?'✅ À jour':'⚠️ '+r2+' mois retard'} · Total: ${Number(m.total_2026||0).toLocaleString('fr-FR')} F`;
+    info.style.color=elig?'#27AE60':'#E74C3C';
+  }
   if(window._vType==='membre'){
-    if(!elig){document.getElementById('vente-warn').innerHTML='❌ <b>'+name+'</b> n\'est pas éligible au crédit (statut ou retard > 3 mois).';document.getElementById('vente-warn').classList.add('show');document.getElementById('vente-ok').style.display='none';}
-    else{document.getElementById('vente-warn').classList.remove('show');document.getElementById('vente-ok').innerHTML='✅ <b>'+name+'</b> est éligible au crédit GIE.';document.getElementById('vente-ok').style.display='flex';}
+    if(!elig){document.getElementById('vente-warn').innerHTML='❌ <b>'+name+'</b> n\'est pas éligible : statut suspendu ou retard > 3 mois de cotisation.';document.getElementById('vente-warn').classList.add('show');document.getElementById('vente-ok').style.display='none';}
+    else{document.getElementById('vente-warn').classList.remove('show');document.getElementById('vente-ok').innerHTML='✅ <b>'+name+'</b> est éligible au crédit GIE · Vérification OK';document.getElementById('vente-ok').style.display='flex';}
   }
 }
 function acGarant(q){
@@ -2027,7 +2105,18 @@ function acGarant(q){
   ac.innerHTML=r.map(m=>`<div class="ac-item" onclick="selGarant(${m.id},'${m.prenom} ${m.nom}')"><div class="ac-name">${m.prenom} ${m.nom} <span class="badge b-v">Garant OK</span></div><div class="ac-detail">${m.telephone} · ${m.mois_payes||0} mois payés</div></div>`).join('');
   ac.classList.add('show');
 }
-function selGarant(id,name){document.getElementById('vf-garant').value=name;document.getElementById('vf-garant-id').value=id;document.getElementById('vf-garant-ac').classList.remove('show');}
+function selGarant(id,name){
+  document.getElementById('vf-garant').value=name;
+  document.getElementById('vf-garant-id').value=id;
+  document.getElementById('vf-garant-ac').classList.remove('show');
+  const g=STATE.membres.find(x=>x.id==id);
+  const info=document.getElementById('vf-garant-info');
+  if(info&&g){
+    info.style.display='block';
+    info.style.color='#27AE60';
+    info.innerHTML=`✅ Garant: <b>${name}</b> · 📞 ${g.telephone} · ${g.mois_payes||0}/12 mois · Retard: ${g.mois_restants||0} mois`;
+  }
+}
 function acProdVente(q){
   if(q.length<1){document.getElementById('vf-prod-ac').classList.remove('show');return;}
   const r=STATE.produits.filter(p=>p.nom.toLowerCase().includes(q.toLowerCase())).slice(0,6);
@@ -2036,31 +2125,86 @@ function acProdVente(q){
   ac.classList.toggle('show',r.length>0);
 }
 function selProdVente(id,name,prix){document.getElementById('vf-prod').value=name;document.getElementById('vf-prod-id').value=id;document.getElementById('vf-prod-ac').classList.remove('show');document.getElementById('vf-prix').value=prix;calcVF();}
-function calcVF(){const p=parseInt(document.getElementById('vf-prix').value)||0,a=parseInt(document.getElementById('vf-acompte').value)||0;const el=document.getElementById('vf-calc');if(p)el.textContent='Prix: '+f(p)+' · Acompte: '+f(a)+' · Restant: '+f(p-a);else el.textContent='';}
+function calcVF(){
+  const p=parseInt(document.getElementById('vf-prix').value)||0;
+  const a=parseInt(document.getElementById('vf-acompte').value)||0;
+  const el=document.getElementById('vf-calc');
+  if(!p){el.style.display='none';return;}
+  el.style.display='block';
+  const restant=p-a;
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px">
+      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">PRIX TOTAL</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#F5A623">${f(p)}</div></div>
+      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">ACOMPTE REÇU</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#27AE60">${f(a)}</div></div>
+      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">RESTANT DÛ</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:${restant>0?'#E74C3C':'#27AE60'}">${restant===0?'✅ SOLDÉ':f(restant)}</div></div>
+    </div>`;
+}
 async function saveVente(){
-  const clientId=document.getElementById('vf-client-id').value;
-  const client=document.getElementById('vf-client').value;
-  const garantId=document.getElementById('vf-garant-id').value;
-  const garant=document.getElementById('vf-garant').value;
-  const prodId=document.getElementById('vf-prod-id').value;
-  const prod=document.getElementById('vf-prod').value;
   const prix=parseInt(document.getElementById('vf-prix').value)||0;
   const acompte=parseInt(document.getElementById('vf-acompte').value)||0;
   const mode=document.getElementById('vf-mode').value;
   const date=document.getElementById('vf-date').value;
   const auth=document.getElementById('vf-auth').value;
-  if(!client||!prix){toast('⚠️ Client et prix requis','w');return;}
+  const prodId=document.getElementById('vf-prod-id').value;
+  const prodNom=document.getElementById('vf-prod').value;
+  if(!prix){toast('⚠️ Prix de vente requis','w');return;}
+
+  let client, telephone='', clientId=null, garantId=null, garant='', clientType=window._vType||'membre';
+
+  if(clientType==='membre'){
+    // Membre GIE — autocomplete
+    clientId=document.getElementById('vf-client-id').value;
+    client=document.getElementById('vf-client').value;
+    if(!client||!clientId){toast('⚠️ Veuillez sélectionner un membre dans la liste','w');return;}
+    const m=STATE.membres.find(x=>x.id==clientId);
+    if(!m){toast('⚠️ Membre introuvable','w');return;}
+    if(m.statut!=='actif'){toast('❌ Membre suspendu — non éligible','e');return;}
+    if((m.mois_restants||12)>3){toast('❌ Membre en retard >3 mois — non éligible','e');return;}
+    telephone=m.telephone;
+  } else {
+    // Client EXTERNE — champs libres
+    client=(document.getElementById('vf-ext-nom').value||'').trim().toUpperCase();
+    telephone=(document.getElementById('vf-ext-tel').value||'').trim();
+    garantId=document.getElementById('vf-garant-id').value;
+    garant=document.getElementById('vf-garant').value;
+    if(!client){toast('⚠️ Nom du client requis','w');return;}
+    // Garant requis si crédit (restant > 0)
+    if(prix>acompte && !garantId){toast('⚠️ Un garant membre GIE est requis pour une vente à crédit externe','w');return;}
+  }
+
+  const produit=prodId?STATE.produits.find(x=>x.id==prodId):null;
   try{
-    const m=clientId?STATE.membres.find(x=>x.id==clientId):null;
-    const g=garantId?STATE.membres.find(x=>x.id==garantId):null;
-    const p=prodId?STATE.produits.find(x=>x.id==prodId):null;
-    const r=await POST('/api/credits',{client,telephone:m?.telephone||'',type:p?.categorie||'AUTRE',produit_id:prodId||null,prix_vente:prix,montant_recu:acompte,client_type:window._vType||'externe',membre_id:clientId||null,garant:garant||'',garant_id:garantId||null,autorise_par:auth,date_vente:date,mode});
-    toast('✅ Vente enregistrée · '+client+' · '+f(prix));
-    await loadAll();resetVF();
-    if(acompte>0) showRecu({ref:'V-'+r.id,date,client,type:'VENTE',designation:'Vente '+( p?.nom||'Produit'),mode,montant:acompte,note:'Acompte crédit · Restant: '+f(prix-acompte)});
+    const r=await POST('/api/credits',{
+      client, telephone, type: produit?.categorie||'AUTRE',
+      produit_id: prodId||null, prix_vente: prix, montant_recu: acompte,
+      client_type: clientType, membre_id: clientId||null,
+      garant, garant_id: garantId||null,
+      autorise_par: auth, date_vente: date, mode
+    });
+    const restant=prix-acompte;
+    toast('✅ Vente enregistrée · '+client+' · '+f(prix)+(restant>0?' · Restant: '+f(restant):''));
+    await loadAll(); resetVF();
+    showRecu({
+      ref:'V-'+r.id, date, client, type:'VENTE',
+      designation:'Vente '+(produit?.nom||prodNom||'Produit')+(clientType==='externe'?' [Externe]':''),
+      mode, montant: acompte>0?acompte:prix,
+      note: restant>0?'À crédit · Restant: '+f(restant)+' · Garant: '+garant:'Payé comptant'
+    });
   }catch(e){toast('❌ '+e.message,'e');}
 }
-function resetVF(){['vf-client','vf-garant','vf-prod','vf-prix','vf-acompte'].forEach(i=>{const el=document.getElementById(i);if(el)el.value=i==='vf-acompte'?'0':'';});['vf-client-id','vf-garant-id','vf-prod-id'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});const el=document.getElementById('vf-calc');if(el)el.textContent='';document.getElementById('vente-warn')?.classList.remove('show');if(document.getElementById('vente-ok'))document.getElementById('vente-ok').style.display='none';}
+
+function resetVF(){
+  ['vf-client','vf-garant','vf-prod','vf-prix','vf-acompte','vf-ext-nom','vf-ext-tel'].forEach(i=>{
+    const el=document.getElementById(i);
+    if(el)el.value=i==='vf-acompte'?'0':'';
+  });
+  ['vf-client-id','vf-garant-id','vf-prod-id'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  const calc=document.getElementById('vf-calc');if(calc){calc.style.display='none';calc.textContent='';}
+  document.getElementById('vente-warn')?.classList.remove('show');
+  const ok=document.getElementById('vente-ok');if(ok)ok.style.display='none';
+  const mi=document.getElementById('vf-membre-info');if(mi)mi.style.display='none';
+  const gi=document.getElementById('vf-garant-info');if(gi)gi.style.display='none';
+}
 
 // GER MEMBRES
 function renderGerMembres(el){
