@@ -1,6 +1,4 @@
 const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
 const path = require('path');
 const cors = require('cors');
 const compression = require('compression');
@@ -10,40 +8,16 @@ const jwt = require('jsonwebtoken');
 const { getDB, saveDB } = require('./db');
 
 const app = express();
-const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'gie-taxi-taxi-2026-secret';
 
-// ══ WEBSOCKET — BROADCAST TEMPS RÉEL ══
-const wss = new WebSocket.Server({ server });
-const clients = new Set();
+// ══ SYNC — SERVER-SENT EVENTS (temps réel sans WebSocket) ══
+const sseClients = new Map(); // userId -> res
 
-wss.on('connection', (ws, req) => {
-  clients.add(ws);
-  console.log(`🔌 WS connecté (${clients.size} clients)`);
-  ws.on('close', () => { clients.delete(ws); });
-  ws.on('error', () => { clients.delete(ws); });
-  // Ping keepalive
-  ws.isAlive = true;
-  ws.on('pong', () => ws.isAlive = true);
-});
-
-// Heartbeat — évite déconnexions silencieuses
-setInterval(() => {
-  clients.forEach(ws => {
-    if (!ws.isAlive) { clients.delete(ws); ws.terminate(); return; }
-    ws.isAlive = false;
-    ws.ping();
-  });
-}, 25000);
-
-// Broadcast à tous les clients connectés
 function broadcast(event, data) {
-  const msg = JSON.stringify({ event, data, ts: Date.now() });
-  clients.forEach(ws => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(msg, err => { if(err) clients.delete(ws); });
-    }
+  const msg = `data: ${JSON.stringify({ event, data, ts: Date.now() })}\n\n`;
+  sseClients.forEach((res, id) => {
+    try { res.write(msg); } catch(e) { sseClients.delete(id); }
   });
 }
 
@@ -60,6 +34,33 @@ function auth(req, res, next) {
   try { req.user = jwt.verify(token, JWT_SECRET); next(); }
   catch { res.status(401).json({ error: 'Token invalide' }); }
 }
+
+// ══ SSE — TEMPS RÉEL SANS WEBSOCKET ══
+app.get('/api/events', auth, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.flushHeaders();
+
+  const clientId = req.user.id + '_' + Date.now();
+  sseClients.set(clientId, res);
+  console.log(`📡 SSE connecté: ${req.user.nom} (${sseClients.size} clients)`);
+
+  // Send initial ping
+  res.write(`data: ${JSON.stringify({ event: 'connected', data: { nom: req.user.nom } })}\n\n`);
+
+  // Keepalive every 25s
+  const ping = setInterval(() => {
+    try { res.write(': ping\n\n'); } catch(e) { clearInterval(ping); sseClients.delete(clientId); }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(ping);
+    sseClients.delete(clientId);
+    console.log(`📡 SSE déconnecté (${sseClients.size} clients)`);
+  });
+});
 function staffOnly(req, res, next) { auth(req, res, () => { if (req.user.role === 'membre') return res.status(403).json({ error: 'Accès refusé' }); next(); }); }
 function dirOnly(req, res, next) { auth(req, res, () => { if (!['directeur','president'].includes(req.user.role)) return res.status(403).json({ error: 'Réservé directeur' }); next(); }); }
 
@@ -548,8 +549,8 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 // Start server after DB init
 getDB().then(() => {
-  server.listen(PORT, () => {
+  app.listen(PORT, () => {
     console.log(`🚖 GIE TAXI TAXI v2.0 démarré sur port ${PORT}`);
-    console.log(`🔌 WebSocket temps réel activé`);
+    console.log(`📡 SSE temps réel activé`);
   });
 }).catch(e => { console.error('❌ Erreur démarrage:', e); process.exit(1); });

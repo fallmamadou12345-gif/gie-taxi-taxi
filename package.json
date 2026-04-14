@@ -1,6 +1,6 @@
 {
   "name": "gie-taxi-taxi",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "GIE TAXI TAXI Sénégal",
   "main": "server.js",
   "scripts": { "start": "node server.js" },

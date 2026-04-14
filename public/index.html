@@ -1089,7 +1089,7 @@ async function doLogin() {
     localStorage.setItem('gie_token', TOKEN);
     localStorage.setItem('gie_user', JSON.stringify(USER));
     startApp();
-    setTimeout(initWebSocket, 1000);
+    setTimeout(initSSE, 1000);
   } catch(e) {
     err.textContent = e.message;
   }
@@ -3166,172 +3166,125 @@ document.addEventListener('click',e=>{
 });
 
 // AUTO-LOGIN if token exists
-if(TOKEN&&USER){startApp();setTimeout(initWebSocket,1000);}
+if(TOKEN&&USER){startApp();setTimeout(initSSE,1000);}
 
 // ╔══════════════════════════════════════════════════════╗
-// ║         WEBSOCKET — TEMPS RÉEL & SAUVEGARDE          ║
+// ║      SSE — TEMPS RÉEL (Server-Sent Events)           ║
 // ╚══════════════════════════════════════════════════════╝
 
-let _ws = null;
-let _wsRetry = 0;
+let _sse = null;
+let _sseRetry = 0;
 let _lastSync = Date.now();
-let _syncIndicator = null;
 
-function initWebSocket() {
+function initSSE() {
   if (!TOKEN) return;
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = proto + '//' + location.host;
+  if (_sse) { _sse.close(); _sse = null; }
 
-  _ws = new WebSocket(wsUrl);
+  const url = '/api/events';
+  const headers = { 'Authorization': 'Bearer ' + TOKEN };
 
-  _ws.onopen = () => {
-    _wsRetry = 0;
-    console.log('🔌 WebSocket connecté');
-    updateSyncStatus('connected');
-    showSyncBadge('🟢 Connecté', '#27AE60');
-  };
+  // SSE via fetch (plus compatible que EventSource avec auth)
+  fetch(url, { headers })
+    .then(res => {
+      if (!res.ok) throw new Error('SSE auth failed');
+      _sseRetry = 0;
+      updateSyncDot('connected');
+      showSaveFlash('🟢 Connecté temps réel');
 
-  _ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data);
-      handleWSEvent(msg);
-    } catch(err) {}
-  };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-  _ws.onclose = () => {
-    updateSyncStatus('disconnected');
-    showSyncBadge('🔴 Hors ligne', '#E74C3C');
-    // Reconnect exponentiel : 1s, 2s, 4s, 8s, max 30s
-    const delay = Math.min(1000 * Math.pow(2, _wsRetry), 30000);
-    _wsRetry++;
-    console.log(`🔄 Reconnexion dans ${delay/1000}s...`);
-    setTimeout(initWebSocket, delay);
-  };
-
-  _ws.onerror = () => { _ws.close(); };
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) { reconnectSSE(); return; }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          lines.forEach(line => {
+            if (line.startsWith('data: ')) {
+              try {
+                const msg = JSON.parse(line.slice(6));
+                if (msg.event !== 'connected') handleSyncEvent(msg);
+              } catch(e) {}
+            }
+          });
+          read();
+        }).catch(() => reconnectSSE());
+      }
+      read();
+    })
+    .catch(() => reconnectSSE());
 }
 
-function updateSyncStatus(status) {
+function reconnectSSE() {
+  updateSyncDot('disconnected');
+  const delay = Math.min(2000 * Math.pow(1.5, _sseRetry), 30000);
+  _sseRetry++;
+  setTimeout(initSSE, delay);
+}
+
+function updateSyncDot(status) {
   const dot = document.getElementById('u-dot');
   if (!dot) return;
-  if (status === 'connected') {
-    dot.style.boxShadow = '0 0 8px #27AE60';
-    dot.title = 'Connecté — données en temps réel';
-  } else {
-    dot.style.boxShadow = '0 0 8px #E74C3C';
-    dot.title = 'Déconnecté — tentative de reconnexion...';
-  }
+  dot.style.boxShadow = status === 'connected' ? '0 0 8px #27AE60' : '0 0 8px #E74C3C';
 }
 
-function showSyncBadge(msg, color) {
-  let badge = document.getElementById('sync-badge');
-  if (!badge) {
-    badge = document.createElement('div');
-    badge.id = 'sync-badge';
-    badge.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface,rgba(44,24,16,.95));border:1px solid;border-radius:20px;padding:5px 14px;font-size:11px;z-index:300;transition:opacity .5s;white-space:nowrap;pointer-events:none';
-    document.body.appendChild(badge);
-  }
-  badge.textContent = msg;
-  badge.style.borderColor = color;
-  badge.style.color = color;
-  badge.style.opacity = '1';
-  clearTimeout(badge._t);
-  badge._t = setTimeout(() => badge.style.opacity = '0', 3000);
-}
-
-async function handleWSEvent(msg) {
-  const { event, data } = msg;
-
-  // Toast notification pour les autres utilisateurs
-  const myName = USER?.nom || '';
-  if (data?.saisi_par && data.saisi_par !== myName) {
-    const evtLabels = {
-      cotisation_added: `💳 Cotisation enregistrée — ${data.membre} · ${data.mois}`,
-      versement_added: `🔋 Versement reçu — ${data.client} · ${f(data.montant)}${data.statut==='Soldé'?' ✅ SOLDÉ':''}`,
-      credit_added: `🛒 Nouveau crédit — ${data.client} · ${f(data.prix_vente)}`,
-      membre_added: `👤 Nouveau membre — ${data.prenom} ${data.nom}`,
-      depense_added: `💸 Dépense — ${data.designation} · ${f(data.montant)}`,
-    };
-    const label = evtLabels[event];
-    if (label) {
-      toast(`🔄 ${label} (par ${data.saisi_par})`, 's');
-      showSyncBadge('🔄 Données mises à jour', '#F5A623');
-    }
-  }
-
-  // Reload silencieux des données
-  await loadAll();
-
-  // Refresh page active si concernée
-  const pageMap = {
-    cotisation_added: ['cotisations','dashboard','mycot','encaissement'],
-    versement_added: ['credits','dashboard','mycred','gestion-op','encaissement'],
-    credit_added: ['credits','dashboard','gestion-op'],
-    membre_added: ['membres','ger-membres','dashboard'],
-    depense_added: ['depenses','journal','recap','gestion-op'],
-  };
-  const toRefresh = pageMap[event] || [];
-  if (toRefresh.includes(STATE.currentPage)) {
-    const el = document.getElementById('page-'+STATE.currentPage);
-    if (el) {
-      // Soft refresh — only reload data-dependent sections
-      softRefreshPage(STATE.currentPage);
-    }
-  }
-
-  // Update sync indicator
-  _lastSync = Date.now();
-  showSyncBadge('✅ Synchronisé', '#27AE60');
-}
-
-function softRefreshPage(pageId) {
-  // Refresh stats/tables without full re-render to avoid flicker
-  switch(pageId) {
-    case 'dashboard': renderDashboard(document.getElementById('page-dashboard')); break;
-    case 'encaissement': loadEncToday(); loadEncStats(); break;
-    case 'journal': renderJournal(document.getElementById('page-journal')); break;
-    default:
-      // Full re-render for other pages
-      renderPage(pageId);
-  }
-}
-
-// ── INDICATEUR DE SAUVEGARDE VISUEL ──
-// Affiche un indicateur sur chaque opération réussie
-const _origPost = POST;
-const _origPut = PUT;
-const _origDelete = api;
-
-// Patch: ajout saveFlash aux toasts de succès
-// (injection dans doEncaissement et saveSC via showSaveFlash direct)
-
-
-function showSaveFlash() {
+function showSaveFlash(msg) {
   let flash = document.getElementById('save-flash');
   if (!flash) {
     flash = document.createElement('div');
     flash.id = 'save-flash';
-    flash.style.cssText = 'position:fixed;top:60px;right:16px;background:#27AE60;color:#fff;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:600;z-index:400;opacity:0;transition:opacity .2s;pointer-events:none';
+    flash.style.cssText = 'position:fixed;top:62px;right:16px;background:#27AE60;color:#fff;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;z-index:400;opacity:0;transition:opacity .3s;pointer-events:none';
     document.body.appendChild(flash);
   }
-  flash.textContent = '💾 Sauvegardé';
+  flash.textContent = msg || '💾 Sauvegardé';
+  flash.style.background = msg?.includes('🟢') ? '#1D9E75' : '#27AE60';
   flash.style.opacity = '1';
   clearTimeout(flash._t);
-  flash._t = setTimeout(() => flash.style.opacity = '0', 1500);
+  flash._t = setTimeout(() => flash.style.opacity = '0', 2000);
 }
 
-// ── AUTO-SYNC PÉRIODIQUE (filet de sécurité) ──
-// Resync si aucune activité WS depuis 60s
-setInterval(async () => {
-  if (Date.now() - _lastSync > 60000 && TOKEN) {
-    try {
-      await loadAll();
-      _lastSync = Date.now();
-    } catch(e) {}
-  }
-}, 60000);
+async function handleSyncEvent(msg) {
+  const { event, data } = msg;
+  _lastSync = Date.now();
 
-// Init WS après login réussi (appelé depuis doLogin)
-</script>
-</body>
-</html>
+  // Notification si autre utilisateur
+  if (data?.saisi_par && data.saisi_par !== USER?.nom) {
+    const labels = {
+      cotisation_added: `💳 Cotisation — ${data.membre} · ${data.mois}`,
+      versement_added: `🔋 Versement — ${data.client} · ${f(data.montant)}${data.statut==='Soldé'?' ✅ SOLDÉ':''}`,
+      credit_added: `🛒 Nouveau crédit — ${data.client}`,
+      membre_added: `👤 Nouveau membre — ${data.prenom} ${data.nom}`,
+      depense_added: `💸 Dépense — ${data.designation}`,
+    };
+    const label = labels[event];
+    if (label) toast(`🔄 ${label} (par ${data.saisi_par})`, 's');
+  }
+
+  // Refresh données + page active
+  await loadAll();
+  const pageMap = {
+    cotisation_added: ['cotisations','dashboard','mycot','encaissement','saisie-cot'],
+    versement_added: ['credits','dashboard','mycred','gestion-op','encaissement'],
+    credit_added: ['credits','dashboard','gestion-op','nouvelle-vente'],
+    membre_added: ['membres','ger-membres','dashboard'],
+    depense_added: ['depenses','journal','recap','gestion-op'],
+  };
+  const pages = pageMap[event] || [];
+  if (pages.includes(STATE.currentPage)) {
+    if (STATE.currentPage === 'encaissement') { loadEncToday(); loadEncStats(); }
+    else if (STATE.currentPage === 'dashboard') renderDashboard(document.getElementById('page-dashboard'));
+    else renderPage(STATE.currentPage);
+  }
+  showSaveFlash('💾 Synchronisé');
+}
+
+// Auto-sync toutes les 30s (filet de sécurité)
+setInterval(async () => {
+  if (TOKEN && Date.now() - _lastSync > 30000) {
+    try { await loadAll(); _lastSync = Date.now(); } catch(e) {}
+  }
+}, 30000);
+
+
