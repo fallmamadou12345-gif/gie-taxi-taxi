@@ -962,6 +962,7 @@ select.form-input option { background: var(--bg2); }
     <div class="nav-sep staff-only" style="display:none"></div>
     <div class="nav-group-label staff-only" style="display:none">OPÉRATIONS</div>
     <div class="nav-item staff-only" data-page="encaissement" onclick="nav('encaissement',this)" style="display:none"><span class="nav-icon">💵</span><span>Encaissement</span></div>
+    <div class="nav-item staff-only" data-page="gestion-op" onclick="nav('gestion-op',this)" style="display:none"><span class="nav-icon">✏️</span><span>Modifier/Suppr.</span></div>
     <div class="nav-item staff-only" data-page="nouvelle-vente" onclick="nav('nouvelle-vente',this)" style="display:none"><span class="nav-icon">🛒</span><span>Nouvelle Vente</span></div>
     <div class="nav-item staff-only" data-page="saisie-cot" onclick="nav('saisie-cot',this)" style="display:none"><span class="nav-icon">✍️</span><span>Saisir Cotis.</span></div>
     <div class="nav-sep dir-only" style="display:none"></div>
@@ -973,6 +974,8 @@ select.form-input option { background: var(--bg2); }
     <div class="nav-item dir-only" data-page="taxi" onclick="nav('taxi',this)" style="display:none"><span class="nav-icon">🚖</span><span>Taxi GIE</span></div>
     <div class="nav-item dir-only" data-page="journal" onclick="nav('journal',this)" style="display:none"><span class="nav-icon">🧾</span><span>Journal Caisse</span></div>
     <div class="nav-item dir-only" data-page="recap" onclick="nav('recap',this)" style="display:none"><span class="nav-icon">📈</span><span>Récap Général</span></div>
+    <div class="nav-sep" style="margin-top:auto"></div>
+    <div class="nav-item staff-only" data-page="parametres" onclick="nav('parametres',this)" style="display:none;margin-top:auto"><span class="nav-icon">⚙️</span><span>Paramètres</span></div>
   </aside>
 
   <!-- CONTENT -->
@@ -994,6 +997,8 @@ select.form-input option { background: var(--bg2); }
     <div id="page-taxi" class="page"></div>
     <div id="page-journal" class="page"></div>
     <div id="page-recap" class="page"></div>
+    <div id="page-parametres" class="page"></div>
+    <div id="page-gestion-op" class="page"></div>
   </main>
 
   <!-- BOTTOM NAV (mobile) -->
@@ -1044,6 +1049,8 @@ async function api(method, path, body) {
 }
 const GET = (p) => api('GET', p);
 const POST = (p, b) => api('POST', p, b);
+const PUT = (p, b) => api('PUT', p, b);
+const PATCH = (p, b) => api('PATCH', p, b);
 const PUT = (p, b) => api('PUT', p, b);
 const PATCH = (p, b) => api('PATCH', p, b);
 
@@ -1181,6 +1188,8 @@ async function renderPage(pageId) {
     case 'taxi': await renderTaxi(el); break;
     case 'journal': await renderJournal(el); break;
     case 'recap': renderRecap(el); break;
+    case 'parametres': await renderParametres(el); break;
+    case 'gestion-op': await renderGestionOp(el); break;
     default: el.innerHTML = '<div class="loader">Page non trouvée</div>';
   }
 }
@@ -2566,6 +2575,576 @@ function renderRecap(el){
     <tr style="font-weight:bold;background:rgba(245,166,35,.04)"><td>📊 TOTAL</td><td style="color:var(--taxi-vert-clair)">2 693 582 F</td><td style="color:var(--taxi-rouge-clair)">1 407 040 F</td><td style="color:var(--taxi-vert-clair)">+1 286 542 F</td><td style="color:var(--taxi-rouge-clair)">1 587 000 F</td></tr>
   </tbody></table></div></div>`;
 }
+
+
+// ╔══════════════════════════════════════════════════════╗
+// ║           GESTION OPÉRATIONS — MODIFIER/SUPPRIMER    ║
+// ╚══════════════════════════════════════════════════════╝
+async function renderGestionOp(el) {
+  const isDir = ['directeur','president'].includes(USER.role);
+  el.innerHTML=`
+  <div class="page-header">
+    <div class="page-title">✏️ Modifier & Supprimer</div>
+    <div class="page-sub">Contrôle total des enregistrements · Caissier + Directeur</div>
+  </div>
+  <div class="tabs" id="gop-tabs">
+    <div class="tab active" onclick="gopTab('cotisations',this)">💳 Cotisations</div>
+    <div class="tab" onclick="gopTab('credits',this)">🔋 Crédits</div>
+    <div class="tab" onclick="gopTab('versements',this)">💰 Versements</div>
+    <div class="tab" onclick="gopTab('depenses',this)">💸 Dépenses</div>
+    <div class="tab" onclick="gopTab('journal',this)">🧾 Journal</div>
+    ${isDir?'<div class="tab" onclick="gopTab('banque',this)">🏦 Banque</div>':''}
+  </div>
+  <div id="gop-content"><div class="loader"><div class="spinner"></div>Chargement...</div></div>`;
+  gopLoad('cotisations');
+}
+
+let GOP_TYPE = 'cotisations';
+function gopTab(type, btn) {
+  GOP_TYPE = type;
+  document.querySelectorAll('#gop-tabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  gopLoad(type);
+}
+
+async function gopLoad(type) {
+  const el = document.getElementById('gop-content');
+  if(!el) return;
+  el.innerHTML = '<div class="loader"><div class="spinner"></div>Chargement...</div>';
+  const isDir = ['directeur','president'].includes(USER.role);
+
+  try {
+    if(type === 'cotisations') {
+      const data = await GET('/api/cotisations?limit=100');
+      el.innerHTML = `
+        <div class="table-card">
+          <div class="table-top">
+            <div class="table-title">Cotisations — ${data.length} enregistrements</div>
+            <input class="search-inp" id="gop-search" placeholder="Rechercher..." oninput="gopFilter(this.value)" style="width:200px">
+          </div>
+          <div class="table-responsive">
+          <table><thead><tr><th>ID</th><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Date</th><th>Saisi par</th><th>Actions</th></tr></thead>
+          <tbody id="gop-tbody">
+          ${data.map(c=>`<tr id="gop-row-${c.id}">
+            <td style="color:var(--color-text-secondary)">#${c.id}</td>
+            <td><b>${c.prenom||''} ${c.nom||''}</b></td>
+            <td><span class="badge b-b">${c.mois}</span></td>
+            <td style="color:var(--taxi-vert-clair,#2ECC71);font-weight:700">${Number(c.montant).toLocaleString('fr-FR')} F</td>
+            <td>${c.mode}</td>
+            <td style="color:var(--color-text-secondary)">${c.date}</td>
+            <td style="font-size:9px;color:var(--color-text-secondary)">${c.saisi_par||'—'}</td>
+            <td style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" onclick="gopEdit('cotisation',${c.id},${JSON.stringify({mois:c.mois,montant:c.montant,mode:c.mode,date:c.date}).replace(/"/g,'&quot;')})">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="gopDel('cotisations',${c.id},'cotisation de ${c.prenom||''} ${c.nom||''} — ${c.mois}')">🗑️</button>
+            </td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'credits') {
+      const data = STATE.credits;
+      el.innerHTML = `
+        <div class="alert alert-info"><span>⚠️</span>Seul le Directeur peut supprimer un crédit. La modification est accessible au Caissier.</div>
+        <div class="table-card">
+          <div class="table-top"><div class="table-title">Crédits — ${data.length} dossiers</div></div>
+          <div class="table-responsive">
+          <table><thead><tr><th>ID</th><th>Client</th><th>Type</th><th>Total</th><th>Versé</th><th>Restant</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody>${data.map(c=>`<tr>
+            <td style="color:var(--color-text-secondary)">#${c.id}</td>
+            <td><b>${c.client}</b>${c.garant?`<br><small style="color:var(--color-text-secondary)">Garant: ${c.garant}</small>`:''}</td>
+            <td><span class="badge b-or">${c.type}</span></td>
+            <td>${Number(c.prix_vente).toLocaleString('fr-FR')} F</td>
+            <td style="color:#27AE60">${Number(c.montant_recu).toLocaleString('fr-FR')} F</td>
+            <td style="color:${c.restant>0?'#E74C3C':'#27AE60'};font-weight:700">${c.restant>0?Number(c.restant).toLocaleString('fr-FR')+' F':'✅ Soldé'}</td>
+            <td><span class="badge ${c.statut==='Soldé'?'b-v':'b-or'}">${c.statut}</span></td>
+            <td style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" onclick="gopEditCredit(${c.id})">✏️</button>
+              ${isDir?`<button class="btn btn-danger btn-sm" onclick="gopDel('credits',${c.id},'crédit de ${c.client}')">🗑️</button>`:''}
+            </td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'versements') {
+      const credits = STATE.credits;
+      let rows = [];
+      credits.forEach(c => {
+        (c.versements||[]).forEach((v,i) => {
+          rows.push({...v, credit_id: c.id, client: c.client, type: c.type, vIdx: i});
+        });
+      });
+      el.innerHTML = `
+        <div class="table-card">
+          <div class="table-top"><div class="table-title">Versements — ${rows.length} enregistrements</div></div>
+          <div class="table-responsive">
+          <table><thead><tr><th>Client</th><th>Type crédit</th><th>Montant versé</th><th>Date</th><th>Mode</th><th>Note</th><th>Actions</th></tr></thead>
+          <tbody>${rows.map((v,i)=>`<tr>
+            <td><b>${v.client}</b></td>
+            <td><span class="badge b-or">${v.type}</span></td>
+            <td style="color:#27AE60;font-weight:700">${Number(v.montant).toLocaleString('fr-FR')} F</td>
+            <td style="color:var(--color-text-secondary)">${v.date}</td>
+            <td>${v.mode||'—'}</td>
+            <td style="font-size:10px;color:var(--color-text-secondary)">${v.note||'—'}</td>
+            <td>
+              <button class="btn btn-danger btn-sm" onclick="gopDelVersement(${v.credit_id},${i},'versement de ${v.client} — ${Number(v.montant).toLocaleString("fr-FR")} F')">🗑️ Annuler</button>
+            </td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'depenses') {
+      const data = await GET('/api/depenses');
+      el.innerHTML = `
+        <div class="table-card">
+          <div class="table-top"><div class="table-title">Dépenses — ${data.length} enregistrements</div></div>
+          <div class="table-responsive">
+          <table><thead><tr><th>ID</th><th>Date</th><th>Désignation</th><th>Montant</th><th>Catégorie</th><th>Actions</th></tr></thead>
+          <tbody>${data.map(d=>`<tr id="gop-dep-${d.id}">
+            <td style="color:var(--color-text-secondary)">#${d.id}</td>
+            <td>${d.date||'—'}</td>
+            <td><b>${d.designation}</b></td>
+            <td style="color:#E74C3C;font-weight:700">${Number(d.montant).toLocaleString('fr-FR')} F</td>
+            <td><span class="badge b-gr">${d.categorie}</span></td>
+            <td style="display:flex;gap:4px">
+              <button class="btn btn-ghost btn-sm" onclick="gopEditDep(${d.id},'${d.designation.replace(/'/g,"\'")}',${d.montant},'${d.categorie}','${d.date}')">✏️</button>
+              ${isDir?`<button class="btn btn-danger btn-sm" onclick="gopDel('depenses',${d.id},'dépense: ${d.designation}')">🗑️</button>`:''}
+            </td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'journal') {
+      const data = await GET('/api/journal?limit=50');
+      el.innerHTML = `
+        <div class="alert alert-info"><span>⚠️</span>Réservé Directeur — Modifier le journal affecte les soldes et rapports financiers.</div>
+        <div class="table-card">
+          <div class="table-top"><div class="table-title">Journal Caisse — 50 dernières opérations</div></div>
+          <div class="table-responsive">
+          <table><thead><tr><th>Réf</th><th>Date</th><th>Client</th><th>Type</th><th>Désignation</th><th>Entrée</th><th>Sortie</th><th>Actions</th></tr></thead>
+          <tbody>${data.map(e=>`<tr>
+            <td style="color:#F5A623;font-size:9px">${e.ref}</td>
+            <td style="color:var(--color-text-secondary)">${e.date}</td>
+            <td>${e.client||'—'}</td>
+            <td><span class="badge ${e.type==='CREDIT'?'b-or':e.type==='VENTE'?'b-v':e.type==='COTISATION'?'b-b':'b-gr'}">${e.type}</span></td>
+            <td style="font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis">${e.designation||'—'}</td>
+            <td style="color:#27AE60">${e.entree>0?Number(e.entree).toLocaleString('fr-FR')+' F':'—'}</td>
+            <td style="color:#E74C3C">${e.sortie>0?Number(e.sortie).toLocaleString('fr-FR')+' F':'—'}</td>
+            <td>${isDir?`<button class="btn btn-danger btn-sm" onclick="gopDelJournal(${e.id},'${e.ref}')">🗑️</button>`:''}</td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'banque') {
+      const data = await GET('/api/banque');
+      el.innerHTML = `
+        <div class="table-card">
+          <div class="table-top"><div class="table-title">Mouvements Banque — ${data.length} enregistrements</div></div>
+          <div class="table-responsive">
+          <table><thead><tr><th>ID</th><th>Date</th><th>Désignation</th><th>Banque</th><th>Entrée</th><th>Sortie</th><th>Par</th><th>Actions</th></tr></thead>
+          <tbody>${data.map(b=>`<tr>
+            <td style="color:var(--color-text-secondary)">#${b.id}</td>
+            <td>${b.date}</td>
+            <td><b>${b.designation}</b></td>
+            <td><span class="badge b-b">${b.banque}</span></td>
+            <td style="color:#27AE60">${b.entree>0?Number(b.entree).toLocaleString('fr-FR')+' F':'—'}</td>
+            <td style="color:#E74C3C">${b.sortie>0?Number(b.sortie).toLocaleString('fr-FR')+' F':'—'}</td>
+            <td style="font-size:9px;color:var(--color-text-secondary)">${b.saisi_par||'—'}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="gopDelBanque(${b.id},'${b.designation}')">🗑️</button></td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-info"><span>❌</span>${e.message}</div>`;
+  }
+}
+
+// GOP Actions
+async function gopDel(endpoint, id, label) {
+  if(!confirm(`Supprimer : ${label} ?\n\nCette action est irréversible.`)) return;
+  try {
+    await api('DELETE', '/api/'+endpoint+'/'+id);
+    toast('🗑️ Supprimé : '+label);
+    await loadAll();
+    gopLoad(GOP_TYPE);
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+async function gopDelJournal(id, ref) {
+  if(!confirm(`Supprimer l'entrée de journal ${ref} ?\n\nCette action est irréversible.`)) return;
+  try {
+    await api('DELETE', '/api/journal/'+id);
+    toast('🗑️ Entrée journal supprimée');
+    gopLoad('journal');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+async function gopDelBanque(id, label) {
+  if(!confirm(`Supprimer mouvement bancaire : ${label} ?`)) return;
+  try {
+    await api('DELETE', '/api/banque/'+id);
+    toast('🗑️ Mouvement banque supprimé');
+    gopLoad('banque');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+async function gopDelVersement(creditId, vIdx, label) {
+  if(!confirm(`Annuler : ${label} ?\n\nLe montant sera déduit du crédit.`)) return;
+  const credit = STATE.credits.find(c=>c.id===creditId);
+  if(!credit) return;
+  const vs = credit.versements||[];
+  // Find versement ID via server — use a targeted approach
+  try {
+    const allCreds = await GET('/api/credits');
+    const c = allCreds.find(x=>x.id===creditId);
+    if(!c || !c.versements || !c.versements[vIdx]) { toast('Versement introuvable','e'); return; }
+    // We need versement ID — reload credits to get DB IDs
+    toast('⚠️ Pour supprimer un versement, utiliser la page Crédits → sélectionner le crédit','w');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+function gopEditDep(id, desig, montant, cat, date) {
+  document.getElementById('modal-generic-body').innerHTML = `
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or,#F5A623);margin-bottom:16px">✏️ Modifier la dépense #${id}</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input class="form-input" id="ed-date" type="date" value="${date}"></div>
+      <div class="form-group"><label>Désignation</label><input class="form-input" id="ed-desig" value="${desig}"></div>
+      <div class="form-group"><label>Montant (FCFA)</label><input class="form-input" id="ed-mt" type="number" value="${montant}"></div>
+      <div class="form-group"><label>Catégorie</label>
+        <select class="form-input" id="ed-cat">
+          ${['Salaire','Admin','Réunion','Assurance','Taxi','Assemblée','Equipement','Autre'].map(c=>`<option${c===cat?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="gopSaveDep(${id})">💾 ENREGISTRER</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+    </div>`;
+  document.getElementById('modal-generic').classList.add('show');
+}
+
+async function gopSaveDep(id) {
+  const date = document.getElementById('ed-date').value;
+  const designation = document.getElementById('ed-desig').value;
+  const montant = parseInt(document.getElementById('ed-mt').value)||0;
+  const categorie = document.getElementById('ed-cat').value;
+  try {
+    await PUT('/api/depenses/'+id, {date, designation, montant, categorie});
+    toast('✅ Dépense modifiée');
+    closeModal('modal-generic');
+    gopLoad('depenses');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+function gopEdit(type, id, data) {
+  // Parse data if string
+  if(typeof data === 'string') try { data = JSON.parse(data.replace(/&quot;/g,'"')); } catch(e){}
+  if(type === 'cotisation') {
+    document.getElementById('modal-generic-body').innerHTML = `
+      <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or,#F5A623);margin-bottom:16px">✏️ Modifier cotisation #${id}</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Mois</label>
+          <select class="form-input" id="ec-mois">${MONTHS.map(m=>`<option${m===data.mois?' selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><label>Montant</label><input class="form-input" id="ec-mt" type="number" value="${data.montant}"></div>
+        <div class="form-group"><label>Mode</label>
+          <select class="form-input" id="ec-mode">${['Espèces','Wave','Orange Money','Free Money'].map(m=>`<option${m===data.mode?' selected':''}>${m}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><label>Date</label><input class="form-input" id="ec-date" type="date" value="${data.date}"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="gopSaveCot(${id})">💾 ENREGISTRER</button>
+        <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+      </div>`;
+    document.getElementById('modal-generic').classList.add('show');
+  }
+}
+
+async function gopSaveCot(id) {
+  const mois = document.getElementById('ec-mois').value;
+  const montant = parseInt(document.getElementById('ec-mt').value)||0;
+  const mode = document.getElementById('ec-mode').value;
+  const date = document.getElementById('ec-date').value;
+  try {
+    await PUT('/api/cotisations/'+id, {mois, montant, mode, date});
+    toast('✅ Cotisation modifiée');
+    closeModal('modal-generic');
+    await loadAll();
+    gopLoad('cotisations');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+function gopEditCredit(id) {
+  const c = STATE.credits.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('modal-generic-body').innerHTML = `
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or,#F5A623);margin-bottom:16px">✏️ Modifier crédit #${id} — ${c.client}</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nom client</label><input class="form-input" id="ecr-client" value="${c.client}"></div>
+      <div class="form-group"><label>Téléphone</label><input class="form-input" id="ecr-tel" value="${c.telephone||''}"></div>
+      <div class="form-group"><label>Garant</label><input class="form-input" id="ecr-garant" value="${c.garant||''}"></div>
+      <div class="form-group"><label>Prix vente (FCFA)</label><input class="form-input" id="ecr-prix" type="number" value="${c.prix_vente}"></div>
+      <div class="form-group"><label>Montant reçu (FCFA)</label><input class="form-input" id="ecr-recu" type="number" value="${c.montant_recu}"></div>
+      <div class="form-group"><label>Statut</label>
+        <select class="form-input" id="ecr-statut">
+          <option${c.statut==='En cours'?' selected':''}>En cours</option>
+          <option${c.statut==='Soldé'?' selected':''}>Soldé</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Date vente</label><input class="form-input" id="ecr-date" type="date" value="${c.date_vente||''}"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="gopSaveCredit(${id})">💾 ENREGISTRER</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+    </div>`;
+  document.getElementById('modal-generic').classList.add('show');
+}
+
+async function gopSaveCredit(id) {
+  const client = document.getElementById('ecr-client').value;
+  const telephone = document.getElementById('ecr-tel').value;
+  const garant = document.getElementById('ecr-garant').value;
+  const prix_vente = parseInt(document.getElementById('ecr-prix').value)||0;
+  const montant_recu = parseInt(document.getElementById('ecr-recu').value)||0;
+  const statut = document.getElementById('ecr-statut').value;
+  const date_vente = document.getElementById('ecr-date').value;
+  const restant = Math.max(0, prix_vente - montant_recu);
+  try {
+    await PUT('/api/credits/'+id, {client, telephone, prix_vente, montant_recu, restant, statut, garant, date_vente});
+    toast('✅ Crédit modifié');
+    closeModal('modal-generic');
+    await loadAll();
+    gopLoad('credits');
+  } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+function gopFilter(q) {
+  const ql = q.toLowerCase();
+  document.querySelectorAll('#gop-tbody tr').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(ql) ? '' : 'none';
+  });
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║              PARAMÈTRES & GESTION ACCÈS              ║
+// ╚══════════════════════════════════════════════════════╝
+async function renderParametres(el) {
+  const isDir = ['directeur','president'].includes(USER.role);
+  el.innerHTML = `
+  <div class="page-header">
+    <div class="page-title">⚙️ Paramètres</div>
+    <div class="page-sub">Gestion des accès · PINs · Utilisateurs</div>
+  </div>
+
+  <!-- MON COMPTE -->
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title">🔑 Mon compte — Changer mon PIN</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Ancien PIN</label><input class="form-input" id="p-old" type="password" placeholder="••••" maxlength="6"></div>
+      <div class="form-group"><label>Nouveau PIN (min 4 chiffres)</label><input class="form-input" id="p-new" type="password" placeholder="••••" maxlength="6"></div>
+      <div class="form-group"><label>Confirmer nouveau PIN</label><input class="form-input" id="p-conf" type="password" placeholder="••••" maxlength="6"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveMyPin()">🔐 CHANGER MON PIN</button>
+    </div>
+  </div>
+
+  <!-- STAFF (directeur seulement) -->
+  ${isDir ? `
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title">👥 Comptes Staff — Caissiers & Directeurs</div>
+    <div id="staff-list"><div class="loader"><div class="spinner"></div></div></div>
+    <div style="border-top:1px solid var(--border,rgba(245,166,35,.2));padding-top:14px;margin-top:14px">
+      <div style="font-size:11px;font-weight:600;color:var(--taxi-or,#F5A623);margin-bottom:12px">+ Créer un nouveau compte</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Identifiant (login)</label><input class="form-input" id="ns-user" placeholder="Ex: caissier2"></div>
+        <div class="form-group"><label>Nom complet</label><input class="form-input" id="ns-nom" placeholder="Ex: MOUSSA DIOP"></div>
+        <div class="form-group"><label>Rôle</label>
+          <select class="form-input" id="ns-role">
+            <option value="caissier">💰 Caissier</option>
+            <option value="directeur">🔑 Directeur</option>
+            <option value="president">👑 Président</option>
+          </select>
+        </div>
+        <div class="form-group"><label>PIN initial</label><input class="form-input" id="ns-pin" type="password" placeholder="4+ chiffres" maxlength="6"></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-success" onclick="createStaff()">+ CRÉER LE COMPTE</button></div>
+    </div>
+  </div>
+
+  <!-- MEMBRES : reset PIN -->
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title">👤 Membres — Réinitialiser PIN</div>
+    <div class="alert alert-info" style="margin-bottom:12px"><span>ℹ️</span>Si un membre a oublié son PIN, le réinitialiser à <b>1234</b>.</div>
+    <div class="form-grid">
+      <div class="form-group ac-wrap" style="position:relative">
+        <label>Rechercher le membre</label>
+        <input class="form-input" id="pm-input" placeholder="Nom ou téléphone..." oninput="acPM(this.value)" autocomplete="off">
+        <div class="ac-list" id="pm-ac"></div>
+        <input type="hidden" id="pm-id">
+      </div>
+    </div>
+    <div id="pm-info" style="display:none;margin-bottom:12px;font-size:12px;color:#3B82F6;padding:8px 12px;background:rgba(59,130,246,.08);border-radius:8px;border:1px solid rgba(59,130,246,.2)"></div>
+    <div class="btn-row">
+      <button class="btn btn-danger" onclick="resetMemberPin()">🔄 RÉINITIALISER PIN à 1234</button>
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- INFOS SYSTÈME -->
+  <div class="form-card">
+    <div class="form-title">📊 Informations système</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;font-size:12px">
+      <div style="background:var(--surface2,rgba(61,36,20,.85));border-radius:8px;padding:12px">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:4px">Version</div>
+        <div style="font-weight:600">GIE TAXI TAXI v1.0</div>
+      </div>
+      <div style="background:var(--surface2,rgba(61,36,20,.85));border-radius:8px;padding:12px">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:4px">Connecté en tant que</div>
+        <div style="font-weight:600">${USER.nom}</div>
+        <div style="font-size:10px;color:#F5A623">${USER.role.toUpperCase()}</div>
+      </div>
+      <div style="background:var(--surface2,rgba(61,36,20,.85));border-radius:8px;padding:12px">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:4px">Membres actifs</div>
+        <div style="font-weight:600;font-size:18px;color:#27AE60">${STATE.stats.membres_actifs||0}</div>
+      </div>
+      <div style="background:var(--surface2,rgba(61,36,20,.85));border-radius:8px;padding:12px">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:4px">Crédits en cours</div>
+        <div style="font-weight:600;font-size:18px;color:#E74C3C">${STATE.stats.credits_encours||0}</div>
+      </div>
+    </div>
+  </div>`;
+
+  if(isDir) loadStaffList();
+}
+
+async function loadStaffList() {
+  try {
+    const staff = await GET('/api/staff');
+    const el = document.getElementById('staff-list');
+    if(!el) return;
+    el.innerHTML = `
+      <div class="table-responsive">
+      <table><thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>${staff.map(s=>`<tr>
+        <td><b>${s.username}</b></td>
+        <td>${s.nom||'—'}</td>
+        <td><span class="badge ${s.role==='directeur'?'b-or':s.role==='president'?'b-r':'b-b'}">${s.role}</span></td>
+        <td><span class="badge ${s.actif?'b-v':'b-r'}">${s.actif?'Actif':'Désactivé'}</span></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" onclick="editStaffPin(${s.id},'${s.username}')">🔑 PIN</button>
+          <button class="btn ${s.actif?'btn-danger':'btn-success'} btn-sm" onclick="toggleStaff(${s.id})">${s.actif?'🔴 Désactiver':'🟢 Activer'}</button>
+        </td>
+      </tr>`).join('')}
+      </tbody></table>
+      </div>`;
+  } catch(e) { document.getElementById('staff-list').innerHTML = '<div style="color:#E74C3C">Erreur: '+e.message+'</div>'; }
+}
+
+function editStaffPin(id, username) {
+  document.getElementById('modal-generic-body').innerHTML = `
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or,#F5A623);margin-bottom:16px">🔑 Changer PIN — ${username}</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Nouveau PIN (min 4 chiffres)</label>
+      <input class="form-input" id="sp-pin" type="password" placeholder="Nouveau PIN" maxlength="6" style="font-size:20px;letter-spacing:4px">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveStaffPin(${id})">🔐 ENREGISTRER</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+    </div>`;
+  document.getElementById('modal-generic').classList.add('show');
+}
+
+async function saveStaffPin(id) {
+  const pin = document.getElementById('sp-pin').value;
+  if(!pin || pin.length < 4) { toast('⚠️ PIN min 4 chiffres','w'); return; }
+  try {
+    await PUT('/api/staff/'+id+'/pin', {pin});
+    toast('✅ PIN modifié avec succès');
+    closeModal('modal-generic');
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+async function toggleStaff(id) {
+  try {
+    await PATCH('/api/staff/'+id+'/toggle', {});
+    toast('✅ Statut modifié');
+    loadStaffList();
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+async function createStaff() {
+  const username = document.getElementById('ns-user').value.trim();
+  const nom = document.getElementById('ns-nom').value.trim();
+  const role = document.getElementById('ns-role').value;
+  const pin = document.getElementById('ns-pin').value;
+  if(!username || !pin) { toast('⚠️ Identifiant et PIN requis','w'); return; }
+  if(pin.length < 4) { toast('⚠️ PIN min 4 chiffres','w'); return; }
+  try {
+    await POST('/api/staff', {username, nom, role, pin});
+    toast('✅ Compte créé : '+username);
+    ['ns-user','ns-nom','ns-pin'].forEach(i=>document.getElementById(i).value='');
+    loadStaffList();
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+function acPM(q) {
+  if(q.length<1){document.getElementById('pm-ac').classList.remove('show');return;}
+  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(q.toLowerCase())||m.telephone.includes(q)).slice(0,6);
+  const ac=document.getElementById('pm-ac');
+  ac.innerHTML=r.map(m=>`<div class="ac-item" onclick="selPM(${m.id},'${m.prenom} ${m.nom}','${m.telephone}')">
+    <div style="font-weight:600">${m.prenom} ${m.nom}</div>
+    <div style="font-size:10px;color:var(--color-text-secondary)">📞 ${m.telephone}</div>
+  </div>`).join('');
+  ac.classList.toggle('show',r.length>0);
+}
+
+function selPM(id,name,tel){
+  document.getElementById('pm-input').value=name;
+  document.getElementById('pm-id').value=id;
+  document.getElementById('pm-ac').classList.remove('show');
+  const info=document.getElementById('pm-info');
+  if(info){info.style.display='block';info.innerHTML=`Membre sélectionné: <b>${name}</b> · 📞 ${tel} · Son PIN sera réinitialisé à <b>1234</b>`;}
+}
+
+async function saveMyPin() {
+  const old_pin = document.getElementById('p-old').value;
+  const new_pin = document.getElementById('p-new').value;
+  const conf = document.getElementById('p-conf').value;
+  if(!old_pin || !new_pin) { toast('⚠️ Tous les champs requis','w'); return; }
+  if(new_pin !== conf) { toast('⚠️ Les deux nouveaux PINs ne correspondent pas','w'); return; }
+  if(new_pin.length < 4) { toast('⚠️ PIN min 4 chiffres','w'); return; }
+  try {
+    await POST('/api/change-pin', {old_pin, new_pin});
+    toast('✅ PIN changé avec succès ! Reconnectez-vous avec le nouveau PIN.');
+    ['p-old','p-new','p-conf'].forEach(i=>document.getElementById(i).value='');
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+async function resetMemberPin() {
+  const id = document.getElementById('pm-id').value;
+  const name = document.getElementById('pm-input').value;
+  if(!id) { toast('⚠️ Sélectionner un membre','w'); return; }
+  if(!confirm(`Réinitialiser le PIN de ${name} à 1234 ?`)) return;
+  try {
+    await POST('/api/membres/'+id+'/reset-pin', {});
+    toast('✅ PIN de '+name+' réinitialisé à 1234');
+    document.getElementById('pm-input').value='';
+    document.getElementById('pm-id').value='';
+    document.getElementById('pm-info').style.display='none';
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
 
 // TABS
 function tabSwitch(id,btn){

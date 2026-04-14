@@ -328,6 +328,180 @@ app.get('/api/recu/:ref', auth, async (req, res) => {
   catch(e) { res.status(500).json({error:e.message}); }
 });
 
+// ══ GESTION OPÉRATIONS (Modifier/Supprimer) ══
+
+// Delete cotisation
+app.delete('/api/cotisations/:id', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const c = db.prepare('SELECT * FROM cotisations WHERE id=?').get(req.params.id);
+    if (!c) return res.status(404).json({ error: 'Introuvable' });
+    db.prepare('DELETE FROM cotisations WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update cotisation
+app.put('/api/cotisations/:id', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { mois, montant, mode, date } = req.body;
+    db.prepare('UPDATE cotisations SET mois=?,montant=?,mode=?,date=? WHERE id=?').run(mois, montant, mode, date, req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete credit
+app.delete('/api/credits/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('DELETE FROM versements WHERE credit_id=?').run(req.params.id);
+    db.prepare('DELETE FROM credits WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update credit
+app.put('/api/credits/:id', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { client, telephone, prix_vente, montant_recu, restant, statut, garant, date_vente } = req.body;
+    db.prepare('UPDATE credits SET client=?,telephone=?,prix_vente=?,montant_recu=?,restant=?,statut=?,garant=?,date_vente=?,updated_at=datetime("now") WHERE id=?')
+      .run(client, telephone||'', prix_vente, montant_recu, restant, statut, garant||'', date_vente, req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete versement
+app.delete('/api/versements/:id', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const v = db.prepare('SELECT * FROM versements WHERE id=?').get(req.params.id);
+    if (!v) return res.status(404).json({ error: 'Introuvable' });
+    // Recalculate credit
+    db.prepare('UPDATE credits SET montant_recu=MAX(0,montant_recu-?),restant=restant+?,statut="En cours" WHERE id=?').run(v.montant, v.montant, v.credit_id);
+    db.prepare('DELETE FROM versements WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete journal entry
+app.delete('/api/journal/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('DELETE FROM journal_caisse WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update journal entry
+app.put('/api/journal/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { designation, client, montant, mode, date, note } = req.body;
+    db.prepare('UPDATE journal_caisse SET designation=?,client=?,entree=?,mode=?,date=?,note=? WHERE id=?')
+      .run(designation, client, montant||0, mode, date, note||'', req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete depense
+app.delete('/api/depenses/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('DELETE FROM depenses WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update depense
+app.put('/api/depenses/:id', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { date, designation, montant, categorie } = req.body;
+    db.prepare('UPDATE depenses SET date=?,designation=?,montant=?,categorie=? WHERE id=?').run(date, designation, montant, categorie, req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete banque
+app.delete('/api/banque/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('DELETE FROM banque WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══ PARAMÈTRES / ACCÈS ══
+
+// Get all staff
+app.get('/api/staff', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    res.json(db.prepare('SELECT id,username,role,nom,actif FROM staff').all());
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update staff PIN
+app.put('/api/staff/:id/pin', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { pin } = req.body;
+    if (!pin || pin.length < 4) return res.status(400).json({ error: 'PIN min 4 chiffres' });
+    db.prepare('UPDATE staff SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(pin, 10), req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Toggle staff actif
+app.patch('/api/staff/:id/toggle', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('UPDATE staff SET actif=CASE WHEN actif=1 THEN 0 ELSE 1 END WHERE id=?').run(req.params.id);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Add staff
+app.post('/api/staff', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { username, pin, role, nom } = req.body;
+    if (!username || !pin) return res.status(400).json({ error: 'Username et PIN requis' });
+    const r = db.prepare('INSERT INTO staff(username,pin_hash,role,nom) VALUES(?,?,?,?)').run(username, bcrypt.hashSync(pin, 10), role||'caissier', nom||username);
+    res.json({ ok: true, id: r.lastInsertRowid });
+  } catch(e) { res.status(500).json({ error: e.message.includes('UNIQUE') ? 'Username déjà utilisé' : e.message }); }
+});
+
+// Reset member PIN
+app.post('/api/membres/:id/reset-pin', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('UPDATE membres SET pin_hash=? WHERE id=?').run(bcrypt.hashSync('1234', 10), req.params.id);
+    res.json({ ok: true, message: 'PIN réinitialisé à 1234' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Change own PIN
+app.post('/api/change-pin', auth, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { old_pin, new_pin } = req.body;
+    if (!new_pin || new_pin.length < 4) return res.status(400).json({ error: 'Nouveau PIN min 4 chiffres' });
+    if (req.user.type === 'membre') {
+      const m = db.prepare('SELECT * FROM membres WHERE id=?').get(req.user.id);
+      if (!m || !bcrypt.compareSync(old_pin, m.pin_hash)) return res.status(400).json({ error: 'Ancien PIN incorrect' });
+      db.prepare('UPDATE membres SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(new_pin, 10), req.user.id);
+    } else {
+      const s = db.prepare('SELECT * FROM staff WHERE id=?').get(req.user.id);
+      if (!s || !bcrypt.compareSync(old_pin, s.pin_hash)) return res.status(400).json({ error: 'Ancien PIN incorrect' });
+      db.prepare('UPDATE staff SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(new_pin, 10), req.user.id);
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Catch-all → SPA
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
