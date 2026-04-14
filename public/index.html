@@ -505,23 +505,24 @@ select.form-input option { background: var(--bg2); }
   background: var(--surface);
   border: 1px solid var(--taxi-or);
   border-radius: var(--radius-sm);
-  max-height: 220px;
+  max-height: 300px;
   overflow-y: auto;
   display: none;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  margin-top: 2px;
 }
 .ac-list.show { display: block; }
 .ac-item {
-  padding: 9px 12px;
+  padding: 11px 14px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   border-bottom: 1px solid var(--border);
-  transition: background .1s;
+  transition: background .15s;
 }
-.ac-item:hover { background: rgba(245,166,35,.08); }
+.ac-item:hover { background: rgba(245,166,35,.1); }
 .ac-item:last-child { border-bottom: none; }
-.ac-name { font-weight: 600; margin-bottom: 2px; }
-.ac-detail { font-size: 9px; color: var(--tx2); }
+.ac-name { font-weight: 600; margin-bottom: 3px; font-size: 13px; }
+.ac-detail { font-size: 10px; color: var(--tx2); }
 
 /* ════════ BUTTONS ════════ */
 .btn {
@@ -1499,9 +1500,9 @@ function renderEncaissement(el) {
 
         <!-- CREDIT SEARCH -->
         <div id="enc-credit-section">
-          <div class="form-group ac-wrap" style="margin-bottom:10px">
-            <label>Rechercher crédit en cours</label>
-            <input class="form-input" id="enc-credit-input" placeholder="Nom du client..." oninput="searchEncCredit(this.value)" autocomplete="off">
+          <div class="form-group ac-wrap" style="margin-bottom:10px;position:relative">
+            <label>🔍 Rechercher le client (crédit en cours)</label>
+            <input class="form-input" id="enc-credit-input" placeholder="Taper nom du client..." oninput="searchEncCredit(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
             <div class="ac-list" id="enc-credit-ac"></div>
           </div>
           <div class="credit-info-box" id="enc-credit-box">
@@ -1611,14 +1612,31 @@ function setEncType(type, label, btn) {
 }
 
 function searchEncCredit(q) {
-  if(q.length<2){document.getElementById('enc-credit-ac').classList.remove('show');return;}
-  const r=STATE.credits.filter(c=>c.statut==='En cours'&&c.client.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  if(q.length<1){document.getElementById('enc-credit-ac').classList.remove('show');return;}
+  const ql=q.toLowerCase();
+  const r=STATE.credits.filter(c=>c.statut==='En cours'&&(c.client.toLowerCase().includes(ql)||(c.telephone||'').includes(q))).slice(0,8);
   const ac=document.getElementById('enc-credit-ac');
-  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--taxi-rouge-clair)">Aucun crédit en cours</div>';ac.classList.add('show');return;}
-  ac.innerHTML=r.map(c=>`<div class="ac-item" onclick="selectEncCredit(${c.id})">
-    <div class="ac-name">${c.client} <span class="badge ${c.type==='BATTERIE'?'b-or':'b-v'}">${c.type}</span></div>
-    <div class="ac-detail">Restant: <b style="color:var(--taxi-rouge-clair)">${f(c.restant)}</b> · Versé: ${f(c.montant_recu)}</div>
-  </div>`).join('');
+  if(!r.length){ac.innerHTML=`<div class="ac-item" style="color:var(--color-text-secondary)">Aucun crédit en cours pour "${q}"</div>`;ac.classList.add('show');return;}
+  ac.innerHTML=r.map(c=>{
+    const pct=Math.round(((c.prix_vente-c.restant)/c.prix_vente)*100);
+    const vs=c.versements||[];
+    const lastV=vs.length?vs[vs.length-1].date:'jamais';
+    return`<div class="ac-item" onclick="selectEncCredit(${c.id})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-weight:600;font-size:13px">${c.client}</span>
+        <span class="badge ${c.type==='BATTERIE'?'b-or':c.type==='HUILE'?'b-b':'b-v'}" style="font-size:9px">${c.type}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;flex-wrap:wrap">
+        <span style="color:#E74C3C;font-weight:700">💰 Restant: ${f(c.restant)}</span>
+        <span style="color:#27AE60">✅ Versé: ${f(c.montant_recu)}</span>
+        <span style="color:var(--color-text-secondary)">Total: ${f(c.prix_vente)}</span>
+      </div>
+      <div style="margin-top:4px;background:rgba(0,0,0,.2);border-radius:3px;height:4px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:#F5A623"></div>
+      </div>
+      <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px">${pct}% payé · Dernier versement: ${lastV} · ${vs.length} versement(s)</div>
+    </div>`;
+  }).join('');
   ac.classList.add('show');
 }
 function selectEncCredit(id){
@@ -1650,13 +1668,34 @@ function acProd(q){
 }
 function selProdEnc(id,name,prix){document.getElementById('enc-prod-input').value=name;document.getElementById('enc-prod-id').value=id;document.getElementById('enc-prod-ac').classList.remove('show');document.getElementById('enc-montant').value=prix;updateEncCalc();}
 function acMembreEnc(q){
-  if(q.length<2){document.getElementById('enc-cot-ac').classList.remove('show');return;}
-  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(q.toLowerCase())).slice(0,6);
+  if(q.length<1){document.getElementById('enc-cot-ac').classList.remove('show');return;}
+  const ql=q.toLowerCase();
+  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(ql)||m.telephone.includes(q)||(m.tel2||'').includes(q)).slice(0,8);
   const ac=document.getElementById('enc-cot-ac');
-  ac.innerHTML=r.map(m=>`<div class="ac-item" onclick="selMembreEnc(${m.id},'${m.prenom} ${m.nom}')"><div class="ac-name">${m.prenom} ${m.nom}</div><div class="ac-detail">📞 ${m.telephone} · ${m.mois_payes||0} mois payés</div></div>`).join('');
-  ac.classList.toggle('show',r.length>0);
+  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--color-text-secondary)">Aucun membre pour "'+q+'"</div>';ac.classList.add('show');return;}
+  ac.innerHTML=r.map(m=>{
+    const p=m.mois_payes||0,r2=m.mois_restants||0;
+    const retColor=r2===0?'#27AE60':r2<=3?'#F5A623':'#E74C3C';
+    return`<div class="ac-item" onclick="selMembreEnc(${m.id},'${m.prenom} ${m.nom}',${m.total_2026||0},${p})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</span>
+        <span class="badge ${m.statut==='actif'?'b-v':'b-or'}" style="font-size:9px">${m.statut}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary);flex-wrap:wrap">
+        <span>📞 ${m.telephone}${m.tel2?' / '+m.tel2:''}</span>
+        <span>💳 ${p}/12 mois</span>
+        <span style="color:${retColor}">${r2===0?'✅ À jour':r2+' mois retard'}</span>
+        <span style="color:#F5A623">💰 ${Number(m.total_2026||0).toLocaleString('fr-FR')} F payés</span>
+      </div>
+    </div>`;
+  }).join('');
+  ac.classList.add('show');
 }
-function selMembreEnc(id,name){document.getElementById('enc-cot-input').value=name;document.getElementById('enc-cot-id').value=id;document.getElementById('enc-cot-ac').classList.remove('show');}
+function selMembreEnc(id,name,total,mois){
+  document.getElementById('enc-cot-input').value=name;
+  document.getElementById('enc-cot-id').value=id;
+  document.getElementById('enc-cot-ac').classList.remove('show');
+}
 
 async function doEncaissement(){
   const montant=parseInt(document.getElementById('enc-montant').value)||0;
@@ -1809,36 +1848,73 @@ function printRecu(){
 // SAISIE COT (simple)
 function renderSaisieCot(el){
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Saisir une Cotisation</div><div class="page-sub">Enregistrement rapide</div></div>
-  <div class="alert alert-info"><span>💡</span>Cotisation: <b>2 000 FCFA/mois</b> · Amende après le 15: <b>+500 FCFA</b></div>
+  <div class="page-header"><div class="page-title">Saisir une Cotisation</div><div class="page-sub">Enregistrement rapide · Autocomplete membre</div></div>
+  <div class="alert alert-info"><span>💡</span>Cotisation: <b>2 000 FCFA/mois</b> · Amende après le 15: <b>+500 FCFA</b> · Taper 1 lettre pour chercher un membre</div>
   <div class="form-card">
     <div class="form-title">+ Nouveau paiement</div>
     <div class="form-grid">
-      <div class="form-group ac-wrap"><label>Membre</label>
-        <input class="form-input" id="sc-input" placeholder="Nom ou téléphone..." oninput="acSC(this.value)" autocomplete="off">
-        <div class="ac-list" id="sc-ac"></div><input type="hidden" id="sc-id">
+      <div class="form-group ac-wrap" style="position:relative">
+        <label>🔍 Rechercher le membre (nom ou téléphone)</label>
+        <input class="form-input" id="sc-input" placeholder="Ex: DAOUDA ou 776351010..." oninput="acSC(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
+        <div class="ac-list" id="sc-ac"></div>
+        <input type="hidden" id="sc-id">
       </div>
       <div class="form-group"><label>Mois</label><select class="form-input" id="sc-mois">${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Montant</label><input class="form-input" id="sc-mt" type="number" value="2000" min="500"></div>
-      <div class="form-group"><label>Mode</label><select class="form-input" id="sc-mode"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option></select></div>
+      <div class="form-group"><label>Montant (FCFA)</label><input class="form-input" id="sc-mt" type="number" value="2000" min="500"></div>
+      <div class="form-group"><label>Mode paiement</label><select class="form-input" id="sc-mode"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option></select></div>
       <div class="form-group"><label>Date</label><input class="form-input" id="sc-date" type="date" value="${today()}"></div>
     </div>
-    <div class="btn-row"><button class="btn btn-primary" onclick="saveSC()">ENREGISTRER</button></div>
+    <div id="sc-member-info" style="display:none;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);border-radius:8px;padding:10px 13px;font-size:12px;color:var(--color-text-success,#27AE60);margin-bottom:10px"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveSC()" style="font-size:14px;padding:11px 24px">✅ ENREGISTRER LA COTISATION</button>
+      <button class="btn btn-ghost" onclick="resetSCForm()">Annuler</button>
+    </div>
   </div>
-  <div class="table-card"><div class="table-top"><div class="table-title">Saisies · session</div></div>
+  <div class="table-card"><div class="table-top"><div class="table-title">Saisies · session en cours</div></div>
     <div class="table-responsive"><table><thead><tr><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Date</th><th>Reçu</th></tr></thead><tbody id="sc-hist"></tbody></table></div>
   </div>`;
   renderSCHist();
 }
+function resetSCForm(){
+  const el=document.getElementById('sc-input');if(el)el.value='';
+  const id=document.getElementById('sc-id');if(id)id.value='';
+  const info=document.getElementById('sc-member-info');if(info)info.style.display='none';
+  const mt=document.getElementById('sc-mt');if(mt)mt.value=2000;
+}
 let SC_HIST=[];
 function acSC(q){
-  if(q.length<2){document.getElementById('sc-ac').classList.remove('show');return;}
-  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(q.toLowerCase())||m.telephone.includes(q)).slice(0,6);
+  if(q.length<1){document.getElementById('sc-ac').classList.remove('show');return;}
+  const ql=q.toLowerCase();
+  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(ql)||m.telephone.includes(q)||(m.tel2||'').includes(q)).slice(0,8);
   const ac=document.getElementById('sc-ac');
-  ac.innerHTML=r.map(m=>`<div class="ac-item" onclick="selSC(${m.id},'${m.prenom} ${m.nom}')"><div class="ac-name">${m.prenom} ${m.nom}</div><div class="ac-detail">${m.telephone} · ${m.mois_payes||0} mois</div></div>`).join('');
-  ac.classList.toggle('show',r.length>0);
+  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--color-text-secondary)">Aucun membre trouvé</div>';ac.classList.add('show');return;}
+  ac.innerHTML=r.map(m=>{
+    const p=m.mois_payes||0,ret=m.mois_restants||0;
+    const sc=m.statut==='actif'?'b-v':m.statut==='suspendu'?'b-or':'b-r';
+    const retCls=ret===0?'b-v':ret<=3?'b-or':'b-r';
+    return`<div class="ac-item" onclick="selSC(${m.id},'${m.prenom} ${m.nom}',${m.total_2026||0},${p})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</span>
+        <span class="badge ${sc}" style="font-size:9px">${m.statut}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary)">
+        <span>📞 ${m.telephone}</span>
+        <span>💳 ${p}/12 mois</span>
+        <span class="badge ${retCls}" style="font-size:8px">${ret===0?'À jour':ret<=3?ret+' mois retard':ret+' mois retard'}</span>
+        <span style="color:var(--taxi-or,#F5A623)">💰 ${Number(m.total_2026||0).toLocaleString('fr-FR')} F</span>
+      </div>
+    </div>`;
+  }).join('');
+  ac.classList.add('show');
 }
-function selSC(id,name){document.getElementById('sc-input').value=name;document.getElementById('sc-id').value=id;document.getElementById('sc-ac').classList.remove('show');}
+function selSC(id,name,total,mois){
+  document.getElementById('sc-input').value=name;
+  document.getElementById('sc-id').value=id;
+  document.getElementById('sc-ac').classList.remove('show');
+  // Show info below input
+  const info=document.getElementById('sc-member-info');
+  if(info){info.style.display='block';info.innerHTML=`✅ <b>${name}</b> sélectionné · ${mois}/12 mois payés · Total: ${Number(total).toLocaleString('fr-FR')} F`;}
+}
 async function saveSC(){
   const mid=document.getElementById('sc-id').value;
   const mois=document.getElementById('sc-mois').value;
@@ -1877,9 +1953,11 @@ function renderNouvelleVente(el){
   <div class="form-card">
     <div class="form-title" id="vf-title">🛒 Informations de vente — Membre</div>
     <div class="form-grid">
-      <div class="form-group ac-wrap"><label id="vf-client-lbl">Membre acheteur</label>
-        <input class="form-input" id="vf-client" placeholder="Nom ou téléphone..." oninput="acVenteMembre(this.value)" autocomplete="off">
-        <div class="ac-list" id="vf-client-ac"></div><input type="hidden" id="vf-client-id">
+      <div class="form-group ac-wrap" style="position:relative">
+        <label id="vf-client-lbl">🔍 Rechercher le membre acheteur</label>
+        <input class="form-input" id="vf-client" placeholder="Taper nom ou numéro de téléphone..." oninput="acVenteMembre(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
+        <div class="ac-list" id="vf-client-ac"></div>
+        <input type="hidden" id="vf-client-id">
       </div>
       <div class="form-group ac-wrap" id="vf-garant-wrap" style="display:none"><label>Garant (membre actif &lt;3 mois retard)</label>
         <input class="form-input" id="vf-garant" placeholder="Nom du garant..." oninput="acGarant(this.value)" autocomplete="off">
@@ -1910,11 +1988,29 @@ function setVType(t){
 }
 window._vType='membre';
 function acVenteMembre(q){
-  if(q.length<2){document.getElementById('vf-client-ac').classList.remove('show');return;}
-  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(q.toLowerCase())||m.telephone.includes(q)).slice(0,6);
+  if(q.length<1){document.getElementById('vf-client-ac').classList.remove('show');return;}
+  const ql=q.toLowerCase();
+  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(ql)||m.telephone.includes(q)||(m.tel2||'').includes(q)).slice(0,8);
   const ac=document.getElementById('vf-client-ac');
-  ac.innerHTML=r.map(m=>{const p=m.mois_payes||0,r2=m.mois_restants||0;const elig=m.statut==='actif'&&p>0&&r2<=3;return`<div class="ac-item" onclick="selVenteMembre(${m.id},'${m.prenom} ${m.nom}',${elig})"><div class="ac-name">${m.prenom} ${m.nom} <span class="badge ${elig?'b-v':'b-r'}">${elig?'Éligible':'Non élig.'}</span></div><div class="ac-detail">${m.telephone} · ${p} mois payés · Retard: ${r2} mois</div></div>`}).join('');
-  ac.classList.toggle('show',r.length>0);
+  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--color-text-secondary)">Aucun membre trouvé pour "'+q+'"</div>';ac.classList.add('show');return;}
+  ac.innerHTML=r.map(m=>{
+    const p=m.mois_payes||0,r2=m.mois_restants||0;
+    const elig=m.statut==='actif'&&p>0&&r2<=3;
+    const retColor=r2===0?'#27AE60':r2<=3?'#F5A623':'#E74C3C';
+    return`<div class="ac-item" onclick="selVenteMembre(${m.id},'${m.prenom} ${m.nom}',${elig})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</span>
+        <span class="badge ${elig?'b-v':'b-r'}" style="font-size:9px">${elig?'✅ Éligible':'❌ Non éligible'}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary);flex-wrap:wrap">
+        <span>📞 ${m.telephone}${m.tel2?' / '+m.tel2:''}</span>
+        <span>💳 ${p}/12 mois</span>
+        <span style="color:${retColor}">${r2===0?'✅ À jour':r2+' mois retard'}</span>
+        <span class="badge ${m.statut==='actif'?'b-v':'b-or'}" style="font-size:8px">${m.statut}</span>
+      </div>
+    </div>`;
+  }).join('');
+  ac.classList.add('show');
 }
 function selVenteMembre(id,name,elig){
   document.getElementById('vf-client').value=name;document.getElementById('vf-client-id').value=id;document.getElementById('vf-client-ac').classList.remove('show');
