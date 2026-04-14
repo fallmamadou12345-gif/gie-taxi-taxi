@@ -1,15 +1,51 @@
 const express = require('express');
+const http = require('http');
+const WebSocket = require('ws');
 const path = require('path');
 const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDB } = require('./db');
+const { getDB, saveDB } = require('./db');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'gie-taxi-taxi-2026-secret';
+
+// ══ WEBSOCKET — BROADCAST TEMPS RÉEL ══
+const wss = new WebSocket.Server({ server });
+const clients = new Set();
+
+wss.on('connection', (ws, req) => {
+  clients.add(ws);
+  console.log(`🔌 WS connecté (${clients.size} clients)`);
+  ws.on('close', () => { clients.delete(ws); });
+  ws.on('error', () => { clients.delete(ws); });
+  // Ping keepalive
+  ws.isAlive = true;
+  ws.on('pong', () => ws.isAlive = true);
+});
+
+// Heartbeat — évite déconnexions silencieuses
+setInterval(() => {
+  clients.forEach(ws => {
+    if (!ws.isAlive) { clients.delete(ws); ws.terminate(); return; }
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 25000);
+
+// Broadcast à tous les clients connectés
+function broadcast(event, data) {
+  const msg = JSON.stringify({ event, data, ts: Date.now() });
+  clients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(msg, err => { if(err) clients.delete(ws); });
+    }
+  });
+}
 
 app.use(compression());
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -87,6 +123,7 @@ app.post('/api/membres', dirOnly, async (req, res) => {
     const { prenom, nom, telephone, tel2, taxi, adhesion, statut, notes } = req.body;
     if (!prenom||!nom||!telephone) return res.status(400).json({ error: 'Prénom, Nom, Téléphone requis' });
     const r = db.prepare('INSERT INTO membres(prenom,nom,telephone,tel2,taxi,adhesion,statut,notes,pin_hash)VALUES(?,?,?,?,?,?,?,?,?)').run(prenom.toUpperCase(),nom.toUpperCase(),telephone,tel2||'',taxi||'',adhesion||'',statut||'actif',notes||'',bcrypt.hashSync('1234',10));
+    broadcast('membre_added', { prenom: prenom.toUpperCase(), nom: nom.toUpperCase(), telephone });
     res.json({ ok:true, id: r.lastInsertRowid, message: 'PIN par défaut: 1234' });
   } catch(e) { res.status(500).json({ error: e.message.includes('UNIQUE')?'Téléphone existe déjà':e.message }); }
 });
@@ -126,6 +163,7 @@ app.post('/api/cotisations', staffOnly, async (req, res) => {
     const m = db.prepare('SELECT prenom,nom,statut FROM membres WHERE id=?').get(membre_id);
     if (m?.statut==='suspendu') db.prepare('UPDATE membres SET statut="actif" WHERE id=?').run(membre_id);
     addJournal(db,{ref,date:date||today(),client:m?.prenom+' '+m?.nom,type:'COTISATION',desig:`Cotisation ${mois}`,mode:mode||'Espèces',entree:montant,membre_id,saisi_par:req.user.nom});
+    broadcast('cotisation_added', { membre: m?.prenom+' '+m?.nom, mois, montant, ref, saisi_par: req.user.nom });
     res.json({ ok:true, ref });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -208,6 +246,7 @@ app.post('/api/credits', staffOnly, async (req, res) => {
       addJournal(db,{ref,date:date_vente||today(),client,type:'CREDIT',desig:`Acompte crédit ${type}`,mode:mode||'Espèces',entree:montant_recu,credit_id:cid,saisi_par:req.user.nom});
     }
     if (produit_id) db.prepare('UPDATE produits SET stock=MAX(0,stock-1) WHERE id=?').run(produit_id);
+    broadcast('credit_added', { client, type, prix_vente, client_type: client_type||'externe', saisi_par: req.user.nom });
     res.json({ok:true,id:cid});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
@@ -226,6 +265,7 @@ app.post('/api/credits/:id/versement', staffOnly, async (req, res) => {
     const ns=nr===0?'Soldé':'En cours';
     db.prepare('UPDATE credits SET montant_recu=montant_recu+?,restant=?,statut=? WHERE id=?').run(real,nr,ns,c.id);
     addJournal(db,{ref,date:date||today(),client:c.client,type:'CREDIT',desig:`Versement ${c.type}${ns==='Soldé'?' — SOLDÉ':''}`,mode:mode||'Espèces',entree:real,credit_id:c.id,saisi_par:req.user.nom});
+    broadcast('versement_added', { client: c.client, montant: real, nouveau_restant: nr, statut: ns, ref, saisi_par: req.user.nom });
     res.json({ok:true,ref,nouveau_restant:nr,statut:ns});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
@@ -297,6 +337,7 @@ app.post('/api/depenses', staffOnly, async (req, res) => {
     const {date,designation,montant,categorie}=req.body;
     db.prepare('INSERT INTO depenses(date,designation,montant,categorie,saisi_par)VALUES(?,?,?,?,?)').run(date||today(),designation,montant,categorie||'Admin',req.user.nom);
     addJournal(db,{ref:genRef(db),date:date||today(),client:'GIE',type:'DEPENSE',desig:designation,mode:'Espèces',entree:0,sortie:montant,saisi_par:req.user.nom});
+    broadcast('depense_added', { designation, montant, categorie: categorie||'Admin', saisi_par: req.user.nom });
     res.json({ok:true});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
@@ -507,5 +548,8 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 // Start server after DB init
 getDB().then(() => {
-  app.listen(PORT, () => console.log(`🚖 GIE TAXI TAXI démarré sur port ${PORT}`));
+  server.listen(PORT, () => {
+    console.log(`🚖 GIE TAXI TAXI v2.0 démarré sur port ${PORT}`);
+    console.log(`🔌 WebSocket temps réel activé`);
+  });
 }).catch(e => { console.error('❌ Erreur démarrage:', e); process.exit(1); });
