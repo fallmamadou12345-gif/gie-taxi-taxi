@@ -1483,132 +1483,378 @@ function renderProduits(el) {
 // ═══════════════════════════════════════
 function renderEncaissement(el) {
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Caisse — Encaissement</div><div class="page-sub">Ventes · Versements crédits · Reçu automatique</div></div>
+  <div class="page-header"><div class="page-title">Caisse — Encaissement</div><div class="page-sub">Enregistrement rapide · Reçu automatique · Données en temps réel</div></div>
   <div id="enc-day-stats" class="stat-grid" style="margin-bottom:16px"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div>
-      <div class="form-card">
-        <div class="form-title">💵 Encaisser un paiement</div>
-        <div class="enc-type-grid" id="enc-types">
-          <div class="enc-type-btn active" onclick="setEncType('credit','🔋 Crédit',this)"><div class="enc-type-icon">🔋</div><div class="enc-type-label">Versement Crédit</div></div>
-          <div class="enc-type-btn" onclick="setEncType('vente','🛒 Vente',this)"><div class="enc-type-icon">🛒</div><div class="enc-type-label">Vente Comptant</div></div>
-          <div class="enc-type-btn" onclick="setEncType('cotisation','💳 Cotis',this)"><div class="enc-type-icon">💳</div><div class="enc-type-label">Cotisation</div></div>
-          <div class="enc-type-btn" onclick="setEncType('banque','🏦 Banque',this)"><div class="enc-type-icon">🏦</div><div class="enc-type-label">Versement Banque</div></div>
-          <div class="enc-type-btn" onclick="setEncType('depense','💸 Dépense',this)"><div class="enc-type-icon">💸</div><div class="enc-type-label">Dépense/Sortie</div></div>
-          <div class="enc-type-btn" onclick="setEncType('autre','➕ Autre',this)"><div class="enc-type-icon">➕</div><div class="enc-type-label">Autre Entrée</div></div>
-        </div>
 
-        <!-- CREDIT SEARCH -->
-        <div id="enc-credit-section">
-          <div class="form-group ac-wrap" style="margin-bottom:10px;position:relative">
-            <label>🔍 Rechercher le client (crédit en cours)</label>
-            <input class="form-input" id="enc-credit-input" placeholder="Taper nom du client..." oninput="searchEncCredit(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
-            <div class="ac-list" id="enc-credit-ac"></div>
-          </div>
-          <div class="credit-info-box" id="enc-credit-box">
-            <div class="cib-grid">
-              <div><div class="cib-label">Total Crédit</div><div class="cib-value" id="cib-total" style="color:var(--taxi-or)"></div></div>
-              <div><div class="cib-label">Déjà Versé</div><div class="cib-value" id="cib-verse" style="color:var(--taxi-vert-clair)"></div></div>
-              <div><div class="cib-label">Restant Dû</div><div class="cib-value" id="cib-rest" style="color:var(--taxi-rouge-clair)"></div></div>
-            </div>
-            <div id="cib-hist" style="font-size:9px;color:var(--tx2);margin-top:8px"></div>
-          </div>
-        </div>
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px">
 
-        <!-- VENTE SECTION -->
-        <div id="enc-vente-section" style="display:none">
-          <div class="form-grid">
-            <div class="form-group ac-wrap">
-              <label>Produit vendu</label>
-              <input class="form-input" id="enc-prod-input" placeholder="Taper produit..." oninput="acProd(this.value)" autocomplete="off">
-              <div class="ac-list" id="enc-prod-ac"></div>
-              <input type="hidden" id="enc-prod-id">
-            </div>
-            <div class="form-group"><label>Client</label><input class="form-input" id="enc-vente-client" placeholder="Nom du client"></div>
-          </div>
-        </div>
+  <!-- ═══ PANNEAU GAUCHE : FORMULAIRE ═══ -->
+  <div class="form-card" style="padding:0;overflow:hidden">
 
-        <!-- COTISATION SECTION -->
-        <div id="enc-cotis-section" style="display:none">
-          <div class="form-grid">
-            <div class="form-group ac-wrap">
-              <label>Membre</label>
-              <input class="form-input" id="enc-cot-input" placeholder="Nom du membre..." oninput="acMembreEnc(this.value)" autocomplete="off">
-              <div class="ac-list" id="enc-cot-ac"></div>
-              <input type="hidden" id="enc-cot-id">
-            </div>
-            <div class="form-group"><label>Mois</label>
-              <select class="form-input" id="enc-cot-mois">${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
-            </div>
-          </div>
-        </div>
-
-        <!-- BANQUE SECTION -->
-        <div id="enc-banque-section" style="display:none">
-          <div class="form-grid">
-            <div class="form-group"><label>Banque</label><select class="form-input" id="enc-bank"><option>CMS</option><option>BOA</option><option>Wave Business</option></select></div>
-            <div class="form-group"><label>Désignation</label><input class="form-input" id="enc-bank-desig" placeholder="Nature du versement"></div>
-          </div>
-        </div>
-
-        <!-- AUTRE/DEPENSE SECTION -->
-        <div id="enc-autre-section" style="display:none">
-          <div class="form-group" style="margin-bottom:10px"><label>Désignation</label><input class="form-input" id="enc-autre-desig" placeholder="Description..."></div>
-        </div>
-
-        <!-- MONTANT + MODE + DATE -->
-        <div class="form-grid">
-          <div class="form-group"><label>Montant (FCFA)</label><input class="form-input" id="enc-montant" type="number" placeholder="10 000" min="0" oninput="updateEncCalc()"></div>
-          <div class="form-group"><label>Mode paiement</label>
-            <select class="form-input" id="enc-mode"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option><option>Virement</option><option>Chèque</option></select>
-          </div>
-          <div class="form-group"><label>Date</label><input class="form-input" id="enc-date" type="date" value="${today()}"></div>
-          <div class="form-group"><label>Note</label><input class="form-input" id="enc-note" placeholder="Optionnel..."></div>
-        </div>
-
-        <!-- CALC BOX -->
-        <div id="enc-calc" style="display:none;background:linear-gradient(135deg,rgba(245,166,35,.07),rgba(39,174,96,.05));border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;font-size:12px">
-            <div><div class="stat-label">Encaissé</div><div id="calc-now" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-vert-clair)"></div></div>
-            <div><div class="stat-label">Nouveau restant</div><div id="calc-after" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-rouge-clair)"></div></div>
-          </div>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="doEncaissement()" style="font-size:13px;padding:11px 20px">💵 ENCAISSER &amp; REÇU</button>
-          <button class="btn btn-ghost" onclick="resetEnc()">Annuler</button>
-        </div>
+    <!-- TYPE TABS -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);background:rgba(0,0,0,.3)">
+      <div class="enc-tab active" id="etab-credit" onclick="setEncTab('credit',this)" style="padding:12px 6px;text-align:center;cursor:pointer;border-bottom:3px solid var(--taxi-or,#F5A623);transition:all .2s">
+        <div style="font-size:18px;margin-bottom:3px">🔋</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#F5A623;font-weight:600">Versement Crédit</div>
+      </div>
+      <div class="enc-tab" id="etab-vente" onclick="setEncTab('vente',this)" style="padding:12px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:18px;margin-bottom:3px">🛒</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary);font-weight:600">Vente Comptant</div>
+      </div>
+      <div class="enc-tab" id="etab-cotisation" onclick="setEncTab('cotisation',this)" style="padding:12px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:18px;margin-bottom:3px">💳</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary);font-weight:600">Cotisation</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);background:rgba(0,0,0,.2);border-bottom:1px solid var(--border,rgba(245,166,35,.2))">
+      <div class="enc-tab" id="etab-banque" onclick="setEncTab('banque',this)" style="padding:10px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:15px;margin-bottom:2px">🏦</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary)">Versement Banque</div>
+      </div>
+      <div class="enc-tab" id="etab-depense" onclick="setEncTab('depense',this)" style="padding:10px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:15px;margin-bottom:2px">💸</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary)">Dépense/Sortie</div>
+      </div>
+      <div class="enc-tab" id="etab-autre" onclick="setEncTab('autre',this)" style="padding:10px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:15px;margin-bottom:2px">➕</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary)">Autre Entrée</div>
       </div>
     </div>
 
-    <!-- COLONNE DROITE: Reçus du jour -->
-    <div>
-      <div class="table-card">
-        <div class="table-top"><div class="table-title">📋 Opérations du jour</div>
-          <button class="btn btn-ghost btn-sm" onclick="nav('journal',document.querySelector('[data-page=journal]'))">Journal →</button>
+    <div style="padding:16px">
+
+      <!-- ── SECTION : VERSEMENT CRÉDIT ── -->
+      <div id="esec-credit">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🔋 Rechercher le crédit en cours</div>
+        <div class="form-group ac-wrap" style="position:relative;margin-bottom:10px">
+          <input class="form-input" id="enc-credit-input" placeholder="Taper nom du client..." oninput="searchEncCredit(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
+          <div class="ac-list" id="enc-credit-ac"></div>
         </div>
-        <div id="enc-today" style="max-height:480px;overflow-y:auto">
-          <div class="loader"><div class="spinner"></div></div>
+        <div id="enc-credit-box" style="display:none;background:linear-gradient(135deg,rgba(245,166,35,.07),rgba(192,57,43,.05));border:1px solid rgba(245,166,35,.25);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+            <div><div style="font-size:8px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:3px">Total Crédit</div><div id="cib-total" style="font-weight:700;color:#F5A623;font-size:15px"></div></div>
+            <div><div style="font-size:8px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:3px">Déjà Versé</div><div id="cib-verse" style="font-weight:700;color:#27AE60;font-size:15px"></div></div>
+            <div><div style="font-size:8px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:3px">Restant Dû</div><div id="cib-rest" style="font-weight:700;color:#E74C3C;font-size:15px"></div></div>
+          </div>
+          <div style="height:6px;background:rgba(0,0,0,.3);border-radius:3px;overflow:hidden;margin-bottom:8px"><div id="cib-bar" style="height:100%;background:#F5A623;border-radius:3px;transition:width .4s"></div></div>
+          <div id="cib-hist" style="font-size:9px;color:var(--color-text-secondary)"></div>
         </div>
       </div>
+
+      <!-- ── SECTION : VENTE COMPTANT ── -->
+      <div id="esec-vente" style="display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🛒 Informations de la vente</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group ac-wrap" style="position:relative">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Produit vendu</label>
+            <input class="form-input" id="enc-prod-input" placeholder="🔍 Taper produit..." oninput="acProdEnc(this.value)" autocomplete="off" style="font-size:13px">
+            <div class="ac-list" id="enc-prod-ac"></div>
+            <input type="hidden" id="enc-prod-id">
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Nom du client</label>
+            <input class="form-input" id="enc-vente-client" placeholder="Nom du client..." style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION : COTISATION ── -->
+      <div id="esec-cotisation" style="display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">💳 Membre qui paie sa cotisation</div>
+        <div class="form-group ac-wrap" style="position:relative;margin-bottom:10px">
+          <input class="form-input" id="enc-cot-input" placeholder="🔍 Taper nom ou téléphone du membre..." oninput="acMembreEnc(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
+          <div class="ac-list" id="enc-cot-ac"></div>
+          <input type="hidden" id="enc-cot-id">
+        </div>
+        <div id="enc-cot-info" style="display:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px"></div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Mois de cotisation</label>
+          <select class="form-input" id="enc-cot-mois">${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
+        </div>
+      </div>
+
+      <!-- ── SECTION : BANQUE ── -->
+      <div id="esec-banque" style="display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🏦 Versement vers la banque</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Banque</label>
+            <select class="form-input" id="enc-bank">
+              <option value="CMS">CMS — Crédit Mutuel</option>
+              <option value="BOA">BOA — Bank of Africa</option>
+              <option value="Wave">Wave Business</option>
+              <option value="Caisse">Caisse GIE</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Désignation</label>
+            <input class="form-input" id="enc-bank-desig" placeholder="Ex: Versement cotisations..." style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION : DÉPENSE ── -->
+      <div id="esec-depense" style="display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">💸 Enregistrer une dépense / sortie</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Désignation de la dépense</label>
+          <input class="form-input" id="enc-dep-desig" placeholder="Ex: Salaire mensuel, Réunion bureau, Matériel..." style="font-size:13px">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Catégorie</label>
+            <select class="form-input" id="enc-dep-cat">
+              <option value="Salaire">💼 Salaire</option>
+              <option value="Admin">📋 Admin</option>
+              <option value="Réunion">🤝 Réunion</option>
+              <option value="Assurance">🛡️ Assurance</option>
+              <option value="Taxi">🚖 Taxi GIE</option>
+              <option value="Assemblée">🏛️ Assemblée</option>
+              <option value="Equipement">🖥️ Équipement</option>
+              <option value="Autre">📦 Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Bénéficiaire</label>
+            <input class="form-input" id="enc-dep-benef" placeholder="Ex: PAPE NDIAYE..." style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION : AUTRE ENTRÉE ── -->
+      <div id="esec-autre" style="display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">➕ Autre entrée de caisse</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Nature de l'entrée</label>
+          <input class="form-input" id="enc-autre-desig" placeholder="Ex: Remboursement, Don, Recette..." style="font-size:13px">
+        </div>
+      </div>
+
+      <!-- ── CHAMPS COMMUNS ── -->
+      <div style="border-top:1px solid rgba(245,166,35,.15);padding-top:14px;margin-top:4px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Montant (FCFA)</label>
+            <input class="form-input" id="enc-montant" type="number" placeholder="10 000" min="0" oninput="updateEncCalc()" style="font-size:16px;font-weight:700;padding:12px 14px">
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Mode de paiement</label>
+            <select class="form-input" id="enc-mode" style="font-size:13px">
+              <option>Espèces</option><option>Wave</option>
+              <option>Orange Money</option><option>Free Money</option>
+              <option>Virement</option><option>Chèque</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Date</label>
+            <input class="form-input" id="enc-date" type="date" value="${today()}" style="font-size:13px">
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Note (optionnel)</label>
+            <input class="form-input" id="enc-note" placeholder="Remarque..." style="font-size:13px">
+          </div>
+        </div>
+
+        <!-- RÉSUMÉ CALCUL (crédit) -->
+        <div id="enc-calc" style="display:none;background:linear-gradient(135deg,rgba(39,174,96,.08),rgba(39,174,96,.04));border:1px solid rgba(39,174,96,.2);border-radius:8px;padding:12px;margin-bottom:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase">Encaissé</div><div id="calc-now" style="font-size:18px;font-weight:700;color:#27AE60"></div></div>
+            <div><div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase">Nouveau restant</div><div id="calc-after" style="font-size:18px;font-weight:700;color:#E74C3C"></div></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="doEncaissement()" style="width:100%;font-size:15px;padding:14px;border-radius:8px;letter-spacing:.5px">
+          💵 ENCAISSER &amp; GÉNÉRER REÇU
+        </button>
+        <button class="btn btn-ghost" onclick="resetEnc()" style="width:100%;margin-top:8px;font-size:12px">Annuler</button>
+      </div>
     </div>
+  </div>
+
+  <!-- ═══ PANNEAU DROIT : OPÉRATIONS DU JOUR ═══ -->
+  <div>
+    <div class="table-card" style="margin-bottom:12px">
+      <div class="table-top" style="background:rgba(245,166,35,.05)">
+        <div class="table-title">📋 Opérations du jour</div>
+        <button class="btn btn-ghost btn-sm" onclick="nav('journal',document.querySelector('[data-page=journal]'))">Journal →</button>
+      </div>
+      <div id="enc-today" style="max-height:440px;overflow-y:auto">
+        <div style="padding:20px;text-align:center;color:var(--color-text-secondary)">Chargement...</div>
+      </div>
+    </div>
+  </div>
+
   </div>`;
   loadEncToday();
   loadEncStats();
 }
 
 let ENC_TYPE = 'credit', ENC_CREDIT = null;
-function setEncType(type, label, btn) {
-  ENC_TYPE = type; ENC_CREDIT = null;
-  document.querySelectorAll('.enc-type-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  ['credit','vente','cotis','banque','autre'].forEach(t=>{
-    const s=document.getElementById('enc-'+t+'-section');
-    if(s)s.style.display=t===type?'block':'none';
+
+function setEncTab(type, btn) {
+  ENC_TYPE = type;
+  ENC_CREDIT = null;
+  // Reset all tabs
+  document.querySelectorAll('.enc-tab').forEach(t=>{
+    t.style.borderBottomColor='transparent';
+    t.querySelector('div:last-child').style.color='var(--color-text-secondary)';
   });
-  const box=document.getElementById('enc-credit-box');if(box)box.classList.remove('show');
+  // Activate clicked tab
+  btn.style.borderBottomColor='#F5A623';
+  btn.querySelector('div:last-child').style.color='#F5A623';
+  // Show/hide sections
+  ['credit','vente','cotisation','banque','depense','autre'].forEach(s=>{
+    const el=document.getElementById('esec-'+s);
+    if(el) el.style.display=s===type?'block':'none';
+  });
+  // Reset
+  document.getElementById('enc-credit-box').style.display='none';
   document.getElementById('enc-calc').style.display='none';
-  if(type==='depense'){const s=document.getElementById('enc-autre-section');if(s)s.style.display='block';document.getElementById('enc-banque-section').style.display='none';}
+  const cotInfo=document.getElementById('enc-cot-info');
+  if(cotInfo) cotInfo.style.display='none';
+  // Set default montant for cotisation
+  if(type==='cotisation') document.getElementById('enc-montant').value=2000;
+  else if(type==='depense') document.getElementById('enc-montant').value='';
+}
+
+function acMembreEnc(q){
+  if(q.length<1){document.getElementById('enc-cot-ac').classList.remove('show');return;}
+  const ql=q.toLowerCase();
+  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(ql)||m.telephone.includes(q)||(m.tel2||'').includes(q)).slice(0,8);
+  const ac=document.getElementById('enc-cot-ac');
+  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--color-text-secondary)">Aucun membre trouvé</div>';ac.classList.add('show');return;}
+  ac.innerHTML=r.map(m=>{
+    const p=m.mois_payes||0,r2=m.mois_restants||0;
+    const retColor=r2===0?'#27AE60':r2<=3?'#F5A623':'#E74C3C';
+    return`<div class="ac-item" onclick="selMembreEnc(${m.id},'${m.prenom} ${m.nom}',${m.total_2026||0},${p},${r2})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</span>
+        <span style="font-size:9px;background:rgba(245,166,35,.15);color:#F5A623;padding:2px 7px;border-radius:4px">#${m.id}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:10px">
+        <span style="color:var(--color-text-secondary)">📞 ${m.telephone}</span>
+        <span style="color:#3B82F6">💳 ${p}/12 mois payés</span>
+        <span style="color:${retColor}">${r2===0?'✅ À jour':r2+' mois retard'}</span>
+        <span style="color:#F5A623">💰 ${Number(m.total_2026||0).toLocaleString('fr-FR')} F</span>
+      </div>
+    </div>`;
+  }).join('');
+  ac.classList.add('show');
+}
+
+function selMembreEnc(id, name, total, mois, retard){
+  document.getElementById('enc-cot-input').value = name;
+  document.getElementById('enc-cot-id').value = id;
+  document.getElementById('enc-cot-ac').classList.remove('show');
+  // Show member info
+  const info = document.getElementById('enc-cot-info');
+  if(info){
+    info.style.display='block';
+    info.innerHTML=`<b>${name}</b> · 💳 ${mois}/12 mois payés · ${retard===0?'✅ À jour':'⚠️ '+retard+' mois retard'} · Total 2026: <b>${Number(total).toLocaleString('fr-FR')} F</b>`;
+    info.style.color=retard>3?'#E74C3C':'#3B82F6';
+  }
+  // Auto-fill amount for cotisation
+  document.getElementById('enc-montant').value = 2000;
+}
+
+async function doEncaissement(){
+  const montant=parseInt(document.getElementById('enc-montant').value)||0;
+  const mode=document.getElementById('enc-mode').value;
+  const date=document.getElementById('enc-date').value;
+  const note=document.getElementById('enc-note').value;
+  if(!montant){toast('⚠️ Montant requis','w');return;}
+  try {
+    let result, ref, entry;
+    if(ENC_TYPE==='credit'){
+      if(!ENC_CREDIT){toast('⚠️ Sélectionner un crédit dans la liste','w');return;}
+      result=await POST('/api/credits/'+ENC_CREDIT.id+'/versement',{montant,mode,date,note});
+      ref=result.ref;
+      const real=Math.min(montant,ENC_CREDIT.restant);
+      entry={ref,date,client:ENC_CREDIT.client,type:'CRÉDIT',designation:`Versement ${ENC_CREDIT.type} — ${ENC_CREDIT.client}`,mode,montant:real,note,statut:result.statut};
+      toast((result.statut==='Soldé'?'🎉 CRÉDIT SOLDÉ ! ':'✅ ')+f(real)+' encaissé · '+ENC_CREDIT.client);
+
+    } else if(ENC_TYPE==='vente'){
+      const client=document.getElementById('enc-vente-client').value||'Client divers';
+      const prodId=document.getElementById('enc-prod-id').value;
+      const prodNom=document.getElementById('enc-prod-input').value;
+      ref=genLocalRef();
+      entry={ref,date,client,type:'VENTE',designation:'Vente comptant — '+(prodNom||'Produit'),mode,montant};
+      await POST('/api/journal',{...entry,entree:montant,sortie:0,note,credit_id:null,designation:entry.designation});
+      if(prodId) await PATCH('/api/produits/'+prodId+'/stock',{delta:-1});
+      toast('✅ Vente enregistrée · '+client+' · '+f(montant));
+
+    } else if(ENC_TYPE==='cotisation'){
+      const mid=document.getElementById('enc-cot-id').value;
+      const mois=document.getElementById('enc-cot-mois').value;
+      if(!mid){toast('⚠️ Sélectionner un membre','w');return;}
+      result=await POST('/api/cotisations',{membre_id:mid,mois,montant,mode,date,note});
+      ref=result.ref;
+      const mName=document.getElementById('enc-cot-input').value;
+      entry={ref,date,client:mName,type:'COTISATION',designation:`Cotisation ${mois} — ${mName}`,mode,montant,note};
+      toast('✅ Cotisation '+mois+' · '+mName+' · '+f(montant));
+
+    } else if(ENC_TYPE==='banque'){
+      const banque=document.getElementById('enc-bank').value;
+      const desig=document.getElementById('enc-bank-desig').value||'Versement banque '+banque;
+      await POST('/api/banque',{date,designation:desig,banque,entree:montant,sortie:0,ref:'',saisi_par:USER.nom});
+      ref=genLocalRef();
+      entry={ref,date,client:'Versement '+banque,type:'BANQUE',designation:desig,mode,montant};
+      await POST('/api/journal',{...entry,entree:montant,sortie:0,note,designation:entry.designation});
+      toast('✅ Versement banque '+banque+' · '+f(montant));
+
+    } else if(ENC_TYPE==='depense'){
+      const desig=document.getElementById('enc-dep-desig').value;
+      const cat=document.getElementById('enc-dep-cat').value;
+      const benef=document.getElementById('enc-dep-benef').value;
+      if(!desig){toast('⚠️ Désignation requise','w');return;}
+      await POST('/api/depenses',{date,designation:desig+(benef?' — '+benef:''),montant,categorie:cat});
+      ref=genLocalRef();
+      entry={ref,date,client:benef||'GIE',type:'DÉPENSE',designation:desig+(benef?' — '+benef:''),mode,montant};
+      toast('💸 Dépense enregistrée · '+desig+' · '+f(montant));
+
+    } else {
+      const desig=document.getElementById('enc-autre-desig').value||'Entrée caisse';
+      ref=genLocalRef();
+      entry={ref,date,client:'GIE',type:'AUTRE',designation:desig,mode,montant};
+      await POST('/api/journal',{...entry,entree:montant,sortie:0,note,designation:entry.designation});
+      toast('✅ Entrée enregistrée · '+f(montant));
+    }
+
+    // Show receipt
+    if(entry) showRecu(entry);
+    await loadAll();
+    loadEncToday();
+    loadEncStats();
+    resetEnc();
+
+  } catch(e){ toast('❌ '+e.message,'e'); }
+}
+
+let _localRefN=100;
+function genLocalRef(){ return 'R-'+ String(++_localRefN).padStart(4,'0'); }
+
+function resetEnc(){
+  ENC_CREDIT=null;
+  ['enc-credit-input','enc-vente-client','enc-prod-input','enc-cot-input',
+   'enc-autre-desig','enc-bank-desig','enc-dep-desig','enc-dep-benef','enc-note'].forEach(i=>{
+    const el=document.getElementById(i);if(el)el.value='';
+  });
+  ['enc-prod-id','enc-cot-id'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
+  document.getElementById('enc-montant').value='';
+  const box=document.getElementById('enc-credit-box');if(box)box.style.display='none';
+  const calc=document.getElementById('enc-calc');if(calc)calc.style.display='none';
+  const cotInfo=document.getElementById('enc-cot-info');if(cotInfo)cotInfo.style.display='none';
+}
+
+function updateEncCalc(){
+  const amt=parseInt(document.getElementById('enc-montant').value)||0;
+  if(!amt||!ENC_CREDIT){document.getElementById('enc-calc').style.display='none';return;}
+  document.getElementById('enc-calc').style.display='block';
+  document.getElementById('calc-now').textContent=f(amt);
+  const after=Math.max(0,ENC_CREDIT.restant-amt);
+  document.getElementById('calc-after').textContent=after===0?'✅ SOLDÉ':f(after);
 }
 
 function searchEncCredit(q) {
@@ -1620,169 +1866,86 @@ function searchEncCredit(q) {
   ac.innerHTML=r.map(c=>{
     const pct=Math.round(((c.prix_vente-c.restant)/c.prix_vente)*100);
     const vs=c.versements||[];
-    const lastV=vs.length?vs[vs.length-1].date:'jamais';
     return`<div class="ac-item" onclick="selectEncCredit(${c.id})">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-weight:600;font-size:13px">${c.client}</span>
-        <span class="badge ${c.type==='BATTERIE'?'b-or':c.type==='HUILE'?'b-b':'b-v'}" style="font-size:9px">${c.type}</span>
+        <span style="font-size:9px;background:rgba(245,166,35,.15);color:#F5A623;padding:2px 7px;border-radius:4px">${c.type}</span>
       </div>
-      <div style="display:flex;gap:10px;font-size:10px;flex-wrap:wrap">
-        <span style="color:#E74C3C;font-weight:700">💰 Restant: ${f(c.restant)}</span>
-        <span style="color:#27AE60">✅ Versé: ${f(c.montant_recu)}</span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:10px;margin-bottom:6px">
+        <span style="color:#E74C3C;font-weight:700">Restant: ${f(c.restant)}</span>
+        <span style="color:#27AE60">Versé: ${f(c.montant_recu)}</span>
         <span style="color:var(--color-text-secondary)">Total: ${f(c.prix_vente)}</span>
+        <span style="color:var(--color-text-secondary)">${vs.length} versement(s)</span>
       </div>
-      <div style="margin-top:4px;background:rgba(0,0,0,.2);border-radius:3px;height:4px;overflow:hidden">
+      <div style="background:rgba(0,0,0,.3);border-radius:3px;height:4px;overflow:hidden">
         <div style="width:${pct}%;height:100%;background:#F5A623"></div>
       </div>
-      <div style="font-size:9px;color:var(--color-text-secondary);margin-top:2px">${pct}% payé · Dernier versement: ${lastV} · ${vs.length} versement(s)</div>
     </div>`;
   }).join('');
   ac.classList.add('show');
 }
+
 function selectEncCredit(id){
   ENC_CREDIT=STATE.credits.find(c=>c.id===id);
   document.getElementById('enc-credit-input').value=ENC_CREDIT.client;
   document.getElementById('enc-credit-ac').classList.remove('show');
-  const box=document.getElementById('enc-credit-box');box.classList.add('show');
+  const box=document.getElementById('enc-credit-box');box.style.display='block';
   document.getElementById('cib-total').textContent=f(ENC_CREDIT.prix_vente);
   document.getElementById('cib-verse').textContent=f(ENC_CREDIT.montant_recu);
   document.getElementById('cib-rest').textContent=f(ENC_CREDIT.restant);
+  const pct=Math.round(((ENC_CREDIT.prix_vente-ENC_CREDIT.restant)/ENC_CREDIT.prix_vente)*100);
+  document.getElementById('cib-bar').style.width=pct+'%';
   const vs=ENC_CREDIT.versements||[];
-  document.getElementById('cib-hist').textContent=vs.length?'Versements: '+vs.map(v=>v.date+'→'+f(v.montant)).join(' | '):'Aucun versement précédent';
+  document.getElementById('cib-hist').textContent=vs.length?'Versements: '+vs.map(v=>v.date+' → '+f(v.montant)).join(' | '):'Aucun versement précédent';
+  // Auto-suggest last payment amount or restant
+  document.getElementById('enc-montant').value=ENC_CREDIT.restant;
   updateEncCalc();
 }
-function updateEncCalc(){
-  const amt=parseInt(document.getElementById('enc-montant').value)||0;
-  if(!amt){document.getElementById('enc-calc').style.display='none';return;}
-  document.getElementById('enc-calc').style.display='block';
-  document.getElementById('calc-now').textContent=f(amt);
-  if(ENC_CREDIT){const after=Math.max(0,ENC_CREDIT.restant-amt);document.getElementById('calc-after').textContent=after===0?'✅ SOLDÉ':f(after);}
-  else document.getElementById('calc-after').textContent='—';
-}
-function acProd(q){
+
+function acProdEnc(q){
   if(q.length<1){document.getElementById('enc-prod-ac').classList.remove('show');return;}
-  const r=STATE.produits.filter(p=>p.nom.toLowerCase().includes(q.toLowerCase())).slice(0,6);
+  const r=STATE.produits.filter(p=>p.nom.toLowerCase().includes(q.toLowerCase())||p.categorie.toLowerCase().includes(q.toLowerCase())).slice(0,6);
   const ac=document.getElementById('enc-prod-ac');
-  ac.innerHTML=r.map(p=>`<div class="ac-item" onclick="selProdEnc(${p.id},'${p.nom.replace(/'/g,"\\'")}',${p.prix_vente})"><div class="ac-name">${p.icon} ${p.nom}</div><div class="ac-detail">${f(p.prix_vente)} · Stock: ${p.stock}</div></div>`).join('');
+  ac.innerHTML=r.map(p=>`<div class="ac-item" onclick="selProdEnc(${p.id},'${p.nom.replace(/'/g,"\\'") }',${p.prix_vente})">
+    <div style="font-weight:600;font-size:13px">${p.icon} ${p.nom}</div>
+    <div style="font-size:10px;color:var(--color-text-secondary)">${f(p.prix_vente)} · Stock: <b style="color:${p.stock>0?'#27AE60':'#E74C3C'}">${p.stock}</b></div>
+  </div>`).join('');
   ac.classList.toggle('show',r.length>0);
 }
-function selProdEnc(id,name,prix){document.getElementById('enc-prod-input').value=name;document.getElementById('enc-prod-id').value=id;document.getElementById('enc-prod-ac').classList.remove('show');document.getElementById('enc-montant').value=prix;updateEncCalc();}
-function acMembreEnc(q){
-  if(q.length<1){document.getElementById('enc-cot-ac').classList.remove('show');return;}
-  const ql=q.toLowerCase();
-  const r=STATE.membres.filter(m=>(m.prenom+' '+m.nom).toLowerCase().includes(ql)||m.telephone.includes(q)||(m.tel2||'').includes(q)).slice(0,8);
-  const ac=document.getElementById('enc-cot-ac');
-  if(!r.length){ac.innerHTML='<div class="ac-item" style="color:var(--color-text-secondary)">Aucun membre pour "'+q+'"</div>';ac.classList.add('show');return;}
-  ac.innerHTML=r.map(m=>{
-    const p=m.mois_payes||0,r2=m.mois_restants||0;
-    const retColor=r2===0?'#27AE60':r2<=3?'#F5A623':'#E74C3C';
-    return`<div class="ac-item" onclick="selMembreEnc(${m.id},'${m.prenom} ${m.nom}',${m.total_2026||0},${p})">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</span>
-        <span class="badge ${m.statut==='actif'?'b-v':'b-or'}" style="font-size:9px">${m.statut}</span>
-      </div>
-      <div style="display:flex;gap:10px;font-size:10px;color:var(--color-text-secondary);flex-wrap:wrap">
-        <span>📞 ${m.telephone}${m.tel2?' / '+m.tel2:''}</span>
-        <span>💳 ${p}/12 mois</span>
-        <span style="color:${retColor}">${r2===0?'✅ À jour':r2+' mois retard'}</span>
-        <span style="color:#F5A623">💰 ${Number(m.total_2026||0).toLocaleString('fr-FR')} F payés</span>
-      </div>
-    </div>`;
-  }).join('');
-  ac.classList.add('show');
-}
-function selMembreEnc(id,name,total,mois){
-  document.getElementById('enc-cot-input').value=name;
-  document.getElementById('enc-cot-id').value=id;
-  document.getElementById('enc-cot-ac').classList.remove('show');
+
+function selProdEnc(id,name,prix){
+  document.getElementById('enc-prod-input').value=name;
+  document.getElementById('enc-prod-id').value=id;
+  document.getElementById('enc-prod-ac').classList.remove('show');
+  document.getElementById('enc-montant').value=prix;
 }
 
-async function doEncaissement(){
-  const montant=parseInt(document.getElementById('enc-montant').value)||0;
-  const mode=document.getElementById('enc-mode').value;
-  const date=document.getElementById('enc-date').value;
-  const note=document.getElementById('enc-note').value;
-  if(!montant){toast('⚠️ Montant requis','w');return;}
-  try {
-    let result,ref,entry;
-    if(ENC_TYPE==='credit'){
-      if(!ENC_CREDIT){toast('⚠️ Sélectionner un crédit','w');return;}
-      result=await POST('/api/credits/'+ENC_CREDIT.id+'/versement',{montant,mode,date,note});
-      ref=result.ref;
-      entry={ref,date,client:ENC_CREDIT.client,type:'CREDIT',designation:`Versement ${ENC_CREDIT.type} — ${ENC_CREDIT.client}`,mode,entree:Math.min(montant,ENC_CREDIT.restant),statut:result.statut};
-      toast((result.statut==='Soldé'?'✅ CRÉDIT SOLDÉ! ':'✅ ')+f(Math.min(montant,ENC_CREDIT.restant))+' · '+ENC_CREDIT.client);
-    } else if(ENC_TYPE==='vente'){
-      const client=document.getElementById('enc-vente-client').value||'Client divers';
-      const prodId=document.getElementById('enc-prod-id').value;
-      entry={ref:genRef(),date,client,type:'VENTE',designation:'Vente comptant — '+(document.getElementById('enc-prod-input').value||'Produit'),mode,entree:montant};
-      await POST('/api/journal',{...entry,credit_id:null});
-      if(prodId) await PATCH('/api/produits/'+prodId+'/stock',{delta:-1});
-      ref=entry.ref;
-      toast('✅ Vente enregistrée · '+client+' · '+f(montant));
-    } else if(ENC_TYPE==='cotisation'){
-      const mid=document.getElementById('enc-cot-id').value;
-      const mois=document.getElementById('enc-cot-mois').value;
-      if(!mid){toast('⚠️ Sélectionner un membre','w');return;}
-      result=await POST('/api/cotisations',{membre_id:mid,mois,montant,mode,date,note});
-      ref=result.ref; entry={ref,date,client:document.getElementById('enc-cot-input').value,type:'COTISATION',designation:`Cotisation ${mois}`,mode,entree:montant};
-      toast('✅ Cotisation '+mois+' · '+document.getElementById('enc-cot-input').value+' · '+f(montant));
-    } else if(ENC_TYPE==='banque'){
-      const banque=document.getElementById('enc-bank').value;
-      const desig=document.getElementById('enc-bank-desig').value||'Versement banque';
-      await POST('/api/banque',{date,designation:desig,banque,entree:montant,sortie:0,ref:genRef(),saisi_par:USER.nom});
-      entry={ref:genRef(),date,client:'Versement '+banque,type:'BANQUE',designation:desig,mode,entree:montant};
-      await POST('/api/journal',entry);
-      ref=entry.ref;
-      toast('✅ Versement banque enregistré · '+f(montant));
-    } else if(ENC_TYPE==='depense'){
-      const desig=document.getElementById('enc-autre-desig').value||'Dépense';
-      await POST('/api/depenses',{date,designation:desig,montant,categorie:'Admin'});
-      ref=genRef(); entry={ref,date,client:'GIE',type:'DEPENSE',designation:desig,mode,sortie:montant,entree:0};
-      toast('💸 Dépense enregistrée · '+f(montant));
-    } else {
-      const desig=document.getElementById('enc-autre-desig').value||'Entrée caisse';
-      entry={ref:genRef(),date,client:'GIE',type:'AUTRE',designation:desig,mode,entree:montant};
-      await POST('/api/journal',entry);
-      ref=entry.ref;
-      toast('✅ Encaissement · '+f(montant));
-    }
-    // Show receipt
-    showRecu({ref,date,client:entry?.client||'—',type:ENC_TYPE.toUpperCase(),designation:entry?.designation||'—',mode,montant,note});
-    // Reload data
-    await loadAll();
-    if(ENC_TYPE==='credit'||ENC_TYPE==='cotisation') await renderPage(STATE.currentPage);
-    loadEncToday();loadEncStats();resetEnc();
-  } catch(e){ toast('❌ '+e.message,'e'); }
-}
-function resetEnc(){
-  ENC_CREDIT=null;
-  ['enc-credit-input','enc-vente-client','enc-prod-input','enc-cot-input','enc-autre-desig','enc-bank-desig','enc-note'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  ['enc-prod-id','enc-cot-id'].forEach(i=>{const el=document.getElementById(i);if(el)el.value='';});
-  const el=document.getElementById('enc-montant');if(el)el.value='';
-  const box=document.getElementById('enc-credit-box');if(box)box.classList.remove('show');
-  const calc=document.getElementById('enc-calc');if(calc)calc.style.display='none';
-}
 async function loadEncToday(){
   const container=document.getElementById('enc-today');if(!container)return;
   try{
-    const ops=await GET('/api/journal?date='+today()+'&limit=20');
-    if(!ops.length){container.innerHTML='<div style="padding:20px;text-align:center;color:var(--tx2);font-size:11px">Aucune opération aujourd\'hui</div>';return;}
-    const cats={CREDIT:'b-or',VENTE:'b-v',COTISATION:'b-b',DEPENSE:'b-r',AUTRE:'b-gr',BANQUE:'b-b'};
-    container.innerHTML=ops.map(e=>`<div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer" onclick="showRecuById('${e.ref}')">
-      <div style="flex:1">
-        <div style="font-size:11px;font-weight:600;margin-bottom:2px">${e.client||'—'}</div>
-        <div style="font-size:9px;color:var(--tx2)">${e.designation||'—'}</div>
-        <div style="font-size:8px;color:var(--tx3);margin-top:2px">${e.ref} · ${e.mode}</div>
+    const ops=await GET('/api/journal?date='+today()+'&limit=30');
+    if(!ops.length){container.innerHTML='<div style="padding:20px;text-align:center;color:var(--color-text-secondary);font-size:12px">Aucune opération aujourd\'hui</div>';return;}
+    const cats={CREDIT:'#F5A623',VENTE:'#27AE60',COTISATION:'#3B82F6',DEPENSE:'#E74C3C',AUTRE:'#9CA3AF',BANQUE:'#8B5CF6','CRÉDIT':'#F5A623','DÉPENSE':'#E74C3C'};
+    let totalJ=0; ops.forEach(e=>totalJ+=(e.entree||0)-(e.sortie||0));
+    container.innerHTML=`<div style="padding:10px 14px;background:rgba(245,166,35,.06);border-bottom:1px solid rgba(245,166,35,.15);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;color:var(--color-text-secondary)">${ops.length} opération(s)</span>
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:${totalJ>=0?'#27AE60':'#E74C3C'}">${totalJ>=0?'+':''}${f(totalJ)}</span>
+    </div>`+
+    ops.map(e=>`<div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px;cursor:pointer" onclick="showRecuById('${e.ref}')">
+      <div style="width:3px;height:36px;border-radius:2px;background:${cats[e.type]||'#9CA3AF'};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.client||'—'}</div>
+        <div style="font-size:9px;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.designation||'—'}</div>
+        <div style="font-size:8px;color:var(--color-text-secondary)">${e.ref} · ${e.mode}</div>
       </div>
-      <div style="text-align:right">
-        <span class="badge ${cats[e.type]||'b-gr'}">${e.type}</span>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:${e.entree>0?'var(--taxi-vert-clair)':'var(--taxi-rouge-clair)'}">
-          ${e.entree>0?'+':'-'}${f(Math.max(e.entree,e.sortie))}
-        </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-weight:700;font-size:13px;color:${e.entree>0?'#27AE60':'#E74C3C'}">${e.entree>0?'+':'-'}${f(Math.max(e.entree||0,e.sortie||0))}</div>
+        <div style="font-size:9px;color:${cats[e.type]||'#9CA3AF'}">${e.type}</div>
       </div>
     </div>`).join('');
-  }catch(e){container.innerHTML='<div style="padding:16px;color:var(--tx2)">Erreur</div>';}
+  }catch(e){container.innerHTML='<div style="padding:16px;color:var(--color-text-secondary)">Erreur chargement</div>';}
 }
+
 async function loadEncStats(){
   try{
     const s=await GET('/api/journal/stats?date='+today());
@@ -1794,6 +1957,7 @@ async function loadEncStats(){
       <div class="stat-card sc-b"><div class="stat-icon">💳</div><div class="stat-label">Cotisations</div><div class="stat-value">${fk(s.cotisations||0)}</div></div>`;
   }catch(e){}
 }
+
 
 // RECU
 function showRecu(data){
