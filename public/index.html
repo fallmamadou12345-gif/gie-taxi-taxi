@@ -2016,7 +2016,7 @@ function printRecu(){
   .stat-label{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#666;display:block;margin-bottom:2px}
   @media print{body{padding:5px;}}</style></head><body>
   ${document.getElementById('recu-body').innerHTML}
-  <script>window.onload=function(){window.print()}<\/script></body></html>`);
+  <scr'+'ipt>window.onload=function(){window.print()}<\/scr'+'ipt></body></html>`);
   w.document.close();
 }
 
@@ -2595,7 +2595,7 @@ async function renderGestionOp(el) {
     <div class="tab" onclick="gopTab('versements',this)">💰 Versements</div>
     <div class="tab" onclick="gopTab('depenses',this)">💸 Dépenses</div>
     <div class="tab" onclick="gopTab('journal',this)">🧾 Journal</div>
-    ${isDir?'<div class="tab" onclick="gopTab('banque',this)">🏦 Banque</div>':''}
+    ${isDir?`<div class="tab" onclick="gopTab('banque',this)">🏦 Banque</div>`:''}
   </div>
   <div id="gop-content"><div class="loader"><div class="spinner"></div>Chargement...</div></div>`;
   gopLoad('cotisations');
