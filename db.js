@@ -189,8 +189,8 @@ function seed(dbw) {
     [125,'MBAYE','GUEYE','764608964','','','2024-09-01','actif',''],
     [127,'CHEIKH','YADE','779628608','','','2024-09-01','actif',''],
     [128,'ALIOU','DIAGNE','782109516','','','2024-09-01','actif','']
-  ]].forEach(m=>ins.run(...m,dp));
-    saveDB(); console.log('✅ 33 membres créés');
+  ].forEach(m=>ins.run(...m,dp));
+    saveDB(); console.log('✅ 84 membres créés');
   }
   if (!dbw.prepare('SELECT 1 FROM cotisations LIMIT 1').get()) {
     const ins=dbw.prepare('INSERT INTO cotisations(membre_id,mois,montant,mode,date,saisi_par)VALUES(?,?,?,?,?,?)');
