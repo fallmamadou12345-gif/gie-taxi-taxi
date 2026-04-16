@@ -96,7 +96,7 @@ app.post('/api/login', async (req, res) => {
     const { telephone, pin } = req.body;
 
     // ── STAFF : login avec username + PIN ──
-    const staff = db.prepare('SELECT * FROM staff WHERE username=? AND actif=1').get(telephone);
+    const staff = db.prepare('SELECT * FROM staff WHERE LOWER(username)=LOWER(?) AND actif=1').get(telephone);
     if (staff && bcrypt.compareSync(pin, staff.pin_hash)) {
       const token = jwt.sign({ id: staff.id, role: staff.role, nom: staff.nom, type: 'staff' }, JWT_SECRET, { expiresIn: '12h' });
       return res.json({ token, user: { id: staff.id, role: staff.role, nom: staff.nom, type: 'staff' } });
@@ -615,6 +615,14 @@ app.post('/api/admin/reload', async (req, res) => {
     const n = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
     const s = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
     res.json({ ok: true, membres: n, staff: s, message: 'DB rechargée depuis disque' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/staff/:id/nom', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('UPDATE staff SET nom=? WHERE id=?').run(req.body.nom, req.params.id);
+    res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -4175,16 +4175,27 @@ async function loadStaffList() {
       <tbody>${staff.map(s=>`<tr>
         <td><b>${s.username}</b></td>
         <td>${s.nom||'—'}</td>
-        <td><span class="badge ${s.role==='directeur'?'b-or':s.role==='president'?'b-r':'b-b'}">${s.role}</span></td>
+        <td><span class="badge ${s.role==='directeur'?'b-or':s.role==='president'?'b-r':s.role==='controleur'?'b-b':'b-gr'}">${s.role}</span></td>
         <td><span class="badge ${s.actif?'b-v':'b-r'}">${s.actif?'Actif':'Désactivé'}</span></td>
-        <td style="display:flex;gap:4px">
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="editStaffNom(${s.id},'${s.nom||s.username}')" title="Modifier nom">✏️ Nom</button>
           <button class="btn btn-ghost btn-sm" onclick="editStaffPin(${s.id},'${s.username}')">🔑 PIN</button>
-          <button class="btn ${s.actif?'btn-danger':'btn-success'} btn-sm" onclick="toggleStaff(${s.id})">${s.actif?'🔴 Désactiver':'🟢 Activer'}</button>
+          <button class="btn ${s.actif?'btn-danger':'btn-success'} btn-sm" onclick="toggleStaff(${s.id})">${s.actif?'🔴':'🟢'}</button>
         </td>
       </tr>`).join('')}
       </tbody></table>
       </div>`;
   } catch(e) { document.getElementById('staff-list').innerHTML = '<div style="color:#E74C3C">Erreur: '+e.message+'</div>'; }
+}
+
+async function editStaffNom(id, currentNom) {
+  const newNom = prompt('Nouveau nom complet:', currentNom);
+  if (!newNom || newNom.trim() === currentNom) return;
+  try {
+    await PUT('/api/staff/'+id+'/nom', { nom: newNom.trim().toUpperCase() });
+    toast('✅ Nom modifié → ' + newNom.trim().toUpperCase());
+    renderStaffList();
+  } catch(e) { toast('❌ ' + e.message, 'e'); }
 }
 
 function editStaffPin(id, username) {
