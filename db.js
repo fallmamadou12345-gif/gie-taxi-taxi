@@ -16,19 +16,31 @@ function saveDB() {
   if (!_db) return;
   try {
     const data = _db.export();
-    fs.writeFileSync(DB_PATH, Buffer.from(data));
+    const buf = Buffer.from(data);
+    // Écriture atomique : on écrit d'abord dans un fichier temp puis rename
+    const tmpPath = DB_PATH + '.tmp';
+    fs.writeFileSync(tmpPath, buf);
+    fs.renameSync(tmpPath, DB_PATH);
     _saveCount++;
-    if (_saveCount % 10 === 0) console.log(`💾 DB sauvegardée (${_saveCount} fois)`);
-  } catch(e) { console.error('❌ Save error:', e.message); }
+    if (_saveCount % 20 === 0) console.log(`💾 DB sauvegardée ${_saveCount}x (${(buf.length/1024).toFixed(0)}KB)`);
+  } catch(e) { 
+    console.error('❌ Save error:', e.message);
+    // Retry direct write
+    try {
+      const data = _db.export();
+      fs.writeFileSync(DB_PATH, Buffer.from(data));
+    } catch(e2) { console.error('❌ Save retry failed:', e2.message); }
+  }
 }
 
 function scheduleSave() {
+  // Save immédiat + debounce pour éviter trop d'écritures
   clearTimeout(_saveTimeout);
-  _saveTimeout = setTimeout(saveDB, 300); // save 300ms after last write
+  _saveTimeout = setTimeout(saveDB, 200);
 }
 
-// Sauvegarde périodique toutes les 30s (filet de sécurité)
-setInterval(saveDB, 30000);
+// Sauvegarde périodique toutes les 15s (filet de sécurité)
+setInterval(saveDB, 15000);
 
 // ── WRAPPER sql.js → API better-sqlite3 compatible ──
 function makeWrapper(sqlDb) {
@@ -282,5 +294,15 @@ async function reloadFromDisk() {
   console.log('✅ DB rechargée depuis disque:', n, 'membres');
   return dbWrapper;
 }
+
+// Sauvegarder avant fermeture du processus
+process.on('SIGTERM', () => { console.log('SIGTERM — sauvegarde finale...'); saveDB(); process.exit(0); });
+process.on('SIGINT', () => { console.log('SIGINT — sauvegarde finale...'); saveDB(); process.exit(0); });
+process.on('exit', () => { if (_db) saveDB(); });
+process.on('uncaughtException', (e) => { 
+  console.error('uncaughtException:', e.message);
+  saveDB();
+  process.exit(1);
+});
 
 module.exports = { getDB, saveDB, forceSeed, reloadFromDisk };
