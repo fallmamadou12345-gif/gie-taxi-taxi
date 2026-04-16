@@ -219,6 +219,28 @@ body::after {
 .dbtn-c { border-color: var(--taxi-vert); color: var(--taxi-vert); }
 .dbtn-d { border-color: var(--taxi-or); color: var(--taxi-or); }
 
+/* ── NOUVEAU LOGIN ── */
+.ltype-row { display:flex; gap:10px; margin-bottom:16px; width:100%; max-width:360px; }
+.ltype-btn {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:14px 10px; border-radius:12px; border:2px solid rgba(245,166,35,.25);
+  background:rgba(245,166,35,.04); color:var(--tx2); cursor:pointer;
+  font-size:12px; font-weight:600; letter-spacing:.5px; text-transform:uppercase;
+  transition:all .2s;
+}
+.ltype-btn:hover { border-color:rgba(245,166,35,.5); background:rgba(245,166,35,.08); }
+.ltype-active { border-color:var(--taxi-or) !important; background:rgba(245,166,35,.12) !important; color:var(--taxi-or) !important; }
+.lform-title { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--taxi-or); margin-bottom:14px; text-align:center; letter-spacing:1px; text-transform:uppercase; }
+.lrole-row { display:flex; gap:8px; }
+.lrole-btn {
+  flex:1; padding:10px 6px; border-radius:8px; border:1.5px solid rgba(245,166,35,.2);
+  background:transparent; color:var(--tx2); cursor:pointer; font-size:11px;
+  font-weight:600; display:flex; flex-direction:column; align-items:center; gap:4px;
+  transition:all .18s;
+}
+.lrole-btn:hover { border-color:rgba(245,166,35,.5); color:var(--taxi-or); }
+.lrole-active { border-color:var(--taxi-or) !important; background:rgba(245,166,35,.1) !important; color:var(--taxi-or) !important; }
+
 /* ════════ MAIN APP ════════ */
 #app { display: none; position: relative; z-index: 1; }
 
@@ -892,20 +914,65 @@ select.form-input option { background: var(--bg2); }
       <div class="login-title">GIE TAXI TAXI</div>
       <div class="login-sub">Sénégal · Système de Gestion 2026</div>
     </div>
-    <div class="login-card">
+
+    <!-- CHOIX TYPE -->
+    <div class="ltype-row">
+      <button class="ltype-btn ltype-active" id="lt-m" onclick="setLoginType('membre')">
+        <span style="font-size:22px">👤</span>
+        <span>Membre</span>
+        <span style="font-size:9px;opacity:.7">Sans mot de passe</span>
+      </button>
+      <button class="ltype-btn" id="lt-s" onclick="setLoginType('staff')">
+        <span style="font-size:22px">🔑</span>
+        <span>Staff</span>
+        <span style="font-size:9px;opacity:.7">Avec mot de passe</span>
+      </button>
+    </div>
+
+    <!-- MEMBRE : numéro uniquement -->
+    <div class="login-card" id="form-membre">
       <div class="login-stripe"></div>
-      <label class="lbl">Numéro de téléphone</label>
-      <input class="linput" id="l-tel" type="tel" placeholder="7X XXX XX XX" maxlength="20" autocomplete="tel">
-      <label class="lbl">Code PIN (4 chiffres)</label>
-      <input class="linput" id="l-pin" type="password" placeholder="• • • •" maxlength="6" autocomplete="current-password">
-      <button class="lbtn" onclick="doLogin()">SE CONNECTER 🚀</button>
-      <div class="lerr" id="l-err"></div>
-      <div class="demo-row">
-        <button class="dbtn dbtn-m" onclick="demo('m')">👤 Membre</button>
-        <button class="dbtn dbtn-c" onclick="demo('c')">💰 Caissier</button>
-        <button class="dbtn dbtn-d" onclick="demo('d')">🔑 Directeur</button>
+      <div class="lform-title">👤 Connexion Membre</div>
+      <label class="lbl">Votre numéro de téléphone</label>
+      <input class="linput" id="l-tel-m" type="tel" placeholder="7X XXX XX XX"
+        maxlength="20" autocomplete="tel"
+        onkeydown="if(event.key==='Enter')doLoginMembre()">
+      <div class="lerr" id="l-err-m"></div>
+      <button class="lbtn" onclick="doLoginMembre()">ENTRER →</button>
+      <div style="font-size:11px;color:var(--tx2);text-align:center;margin-top:12px;line-height:1.6">
+        Entrez le numéro enregistré au GIE<br>
+        <span style="color:var(--taxi-or)">Aucun mot de passe requis</span>
       </div>
     </div>
+
+    <!-- STAFF : rôle + PIN -->
+    <div class="login-card" id="form-staff" style="display:none">
+      <div class="login-stripe" style="background:linear-gradient(90deg,var(--taxi-or),#E74C3C)"></div>
+      <div class="lform-title">🔑 Connexion Staff</div>
+
+      <div class="lrole-row">
+        <button class="lrole-btn lrole-active" id="lr-caissier" onclick="setRole('caissier')">
+          <span style="font-size:18px">💰</span>
+          <span>Caissier</span>
+        </button>
+        <button class="lrole-btn" id="lr-directeur" onclick="setRole('directeur')">
+          <span style="font-size:18px">🔑</span>
+          <span>Directeur</span>
+        </button>
+        <button class="lrole-btn" id="lr-president" onclick="setRole('president')">
+          <span style="font-size:18px">👑</span>
+          <span>Président</span>
+        </button>
+      </div>
+
+      <label class="lbl" style="margin-top:16px">Mot de passe (PIN)</label>
+      <input class="linput" id="l-pin-s" type="password" placeholder="• • • •"
+        maxlength="6" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLoginStaff()">
+      <div class="lerr" id="l-err-s"></div>
+      <button class="lbtn" onclick="doLoginStaff()">SE CONNECTER →</button>
+    </div>
+
   </div>
 </div>
 
@@ -1078,37 +1145,103 @@ function toast(msg, type='s') {
 // ═══════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════
-async function doLogin() {
-  const tel = document.getElementById('l-tel').value.trim().replace(/\s/g,'');
-  const pin = document.getElementById('l-pin').value.trim();
-  const err = document.getElementById('l-err');
+// ── SYSTÈME DE LOGIN ──
+let _loginRole = 'caissier';
+let _loginType = 'membre';
+
+function setLoginType(type) {
+  _loginType = type;
+  document.getElementById('lt-m').classList.toggle('ltype-active', type==='membre');
+  document.getElementById('lt-s').classList.toggle('ltype-active', type==='staff');
+  document.getElementById('form-membre').style.display = type==='membre' ? 'block' : 'none';
+  document.getElementById('form-staff').style.display = type==='staff' ? 'block' : 'none';
+  // Clear errors
+  const em = document.getElementById('l-err-m');
+  const es = document.getElementById('l-err-s');
+  if(em) em.textContent = '';
+  if(es) es.textContent = '';
+  // Focus the right input
+  setTimeout(() => {
+    if(type==='membre') document.getElementById('l-tel-m')?.focus();
+    else document.getElementById('l-pin-s')?.focus();
+  }, 100);
+}
+
+function setRole(role) {
+  _loginRole = role;
+  ['caissier','directeur','president'].forEach(r => {
+    document.getElementById('lr-'+r)?.classList.toggle('lrole-active', r===role);
+  });
+  document.getElementById('l-pin-s').value = '';
+  document.getElementById('l-err-s').textContent = '';
+  document.getElementById('l-pin-s').focus();
+}
+
+// MEMBRE — juste le numéro, PAS de PIN
+async function doLoginMembre() {
+  const tel = (document.getElementById('l-tel-m').value||'').trim().replace(/\s/g,'');
+  const err = document.getElementById('l-err-m');
   err.textContent = '';
+  if(!tel || tel.length < 8) {
+    err.textContent = '⚠️ Entrez votre numéro de téléphone';
+    return;
+  }
+  // Essaye d'abord sans PIN (PIN vide = accès simple)
+  // Le serveur accepte les membres avec tel uniquement si on envoie pin='membre'
   try {
-    const data = await POST('/api/login', { telephone: tel, pin });
-    TOKEN = data.token;
-    USER = data.user;
-    localStorage.setItem('gie_token', TOKEN);
-    localStorage.setItem('gie_user', JSON.stringify(USER));
-    startApp();
-    setTimeout(initSSE, 1000);
+    const data = await POST('/api/login', { telephone: tel, pin: 'MEMBRE_LIBRE' });
+    await _finishLogin(data);
   } catch(e) {
-    err.textContent = e.message;
+    err.textContent = '❌ Numéro non reconnu — vérifiez votre numéro';
   }
 }
-function demo(r) {
-  const map = {m:['776351010','1234'],c:['caissier','2025'],d:['directeur','0000']};
-  document.getElementById('l-tel').value = map[r][0];
-  document.getElementById('l-pin').value = map[r][1];
-  doLogin();
+
+// STAFF — rôle sélectionné + PIN
+async function doLoginStaff() {
+  const pin = (document.getElementById('l-pin-s').value||'').trim();
+  const err = document.getElementById('l-err-s');
+  err.textContent = '';
+  if(!pin) { err.textContent = '⚠️ Entrez votre mot de passe'; return; }
+  try {
+    const data = await POST('/api/login', { telephone: _loginRole, pin });
+    await _finishLogin(data);
+  } catch(e) {
+    err.textContent = '❌ Mot de passe incorrect';
+    document.getElementById('l-pin-s').value = '';
+    document.getElementById('l-pin-s').focus();
+  }
 }
+
+async function _finishLogin(data) {
+  TOKEN = data.token;
+  USER = data.user;
+  localStorage.setItem('gie_token', TOKEN);
+  localStorage.setItem('gie_user', JSON.stringify(USER));
+  startApp();
+  setTimeout(initSSE, 1000);
+}
+
+// Compat
+async function doLogin() { doLoginStaff(); }
+function demo(r) {
+  if(r==='m') setLoginType('membre');
+  else { setLoginType('staff'); setRole(r==='c'?'caissier':r==='d'?'directeur':'president'); }
+}
+
 function doLogout() {
-  localStorage.removeItem('gie_token'); localStorage.removeItem('gie_user');
+  localStorage.removeItem('gie_token');
+  localStorage.removeItem('gie_user');
   TOKEN = null; USER = null;
+  if(_sse) { try{_sse.cancel?.();}catch(e){} _sse=null; }
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('l-tel').value=''; document.getElementById('l-pin').value='';
-  document.getElementById('l-err').textContent='';
+  setLoginType('membre');
+  document.getElementById('l-tel-m').value = '';
+  document.getElementById('l-err-m').textContent = '';
+  document.getElementById('l-pin-s').value = '';
+  document.getElementById('l-err-s').textContent = '';
 }
+
 
 // ═══════════════════════════════════════
 // APP START

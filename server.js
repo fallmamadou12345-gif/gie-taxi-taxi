@@ -78,17 +78,28 @@ app.post('/api/login', async (req, res) => {
   try {
     const db = await getDB();
     const { telephone, pin } = req.body;
+
+    // ── STAFF : login avec username + PIN ──
     const staff = db.prepare('SELECT * FROM staff WHERE username=? AND actif=1').get(telephone);
     if (staff && bcrypt.compareSync(pin, staff.pin_hash)) {
       const token = jwt.sign({ id: staff.id, role: staff.role, nom: staff.nom, type: 'staff' }, JWT_SECRET, { expiresIn: '12h' });
       return res.json({ token, user: { id: staff.id, role: staff.role, nom: staff.nom, type: 'staff' } });
     }
-    const m = db.prepare('SELECT * FROM membres WHERE (telephone=? OR tel2=?)').get(telephone, telephone);
-    if (m && bcrypt.compareSync(pin, m.pin_hash)) {
-      const token = jwt.sign({ id: m.id, role: 'membre', nom: m.prenom+' '+m.nom, membre_id: m.id, type: 'membre' }, JWT_SECRET, { expiresIn: '12h' });
-      return res.json({ token, user: { id: m.id, role: 'membre', nom: m.prenom+' '+m.nom, membre_id: m.id, type: 'membre' } });
+
+    // ── MEMBRE : login avec numéro uniquement (pas de PIN) ──
+    const m = db.prepare('SELECT * FROM membres WHERE (telephone=? OR tel2=?) AND statut!=?').get(telephone, telephone, 'supprimé');
+    if (m) {
+      // Si pin='MEMBRE_LIBRE' → connexion sans PIN (membres simples)
+      // Si pin fourni → vérifier le PIN (membres qui ont changé leur PIN)
+      const noPin = pin === 'MEMBRE_LIBRE';
+      const pinOk = noPin || bcrypt.compareSync(pin, m.pin_hash);
+      if (pinOk) {
+        const token = jwt.sign({ id: m.id, role: 'membre', nom: m.prenom+' '+m.nom, membre_id: m.id, type: 'membre' }, JWT_SECRET, { expiresIn: '12h' });
+        return res.json({ token, user: { id: m.id, role: 'membre', nom: m.prenom+' '+m.nom, membre_id: m.id, type: 'membre', statut: m.statut } });
+      }
     }
-    res.status(401).json({ error: 'Numéro ou PIN incorrect' });
+
+    res.status(401).json({ error: 'Numéro non reconnu dans le GIE' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
