@@ -1113,8 +1113,8 @@ select.form-input option { background: var(--bg2); }
   <aside class="sidebar" id="sidebar">
     <div class="nav-group-label">GÉNÉRAL</div>
     <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard',this)"><span class="nav-icon">📊</span><span>Tableau de bord</span></div>
-    <div class="nav-item" data-page="mycot" onclick="nav('mycot',this)"><span class="nav-icon">💳</span><span>Mes Cotisations</span></div>
-    <div class="nav-item" data-page="mycred" onclick="nav('mycred',this)"><span class="nav-icon">📦</span><span>Mes Crédits</span></div>
+    <div class="nav-item membre-only" data-page="mycot" onclick="nav('mycot',this)"><span class="nav-icon">💳</span><span>Mes Cotisations</span></div>
+    <div class="nav-item membre-only" data-page="mycred" onclick="nav('mycred',this)"><span class="nav-icon">📦</span><span>Mes Crédits</span></div>
     <div class="nav-sep"></div>
     <div class="nav-group-label">CONSULTATION</div>
     <div class="nav-item" data-page="membres" onclick="nav('membres',this)"><span class="nav-icon">👥</span><span>Membres</span></div>
@@ -1347,6 +1347,7 @@ async function startApp() {
   const isDir = ['directeur','president'].includes(USER.role);
   document.querySelectorAll('.staff-only').forEach(el=>el.style.display=(isStaff?'':'none'));
   document.querySelectorAll('.dir-only').forEach(el=>el.style.display=(isDir?'':'none'));
+  document.querySelectorAll('.membre-only').forEach(el=>el.style.display=(isStaff?'none':''));
   // Build bottom nav dynamiquement selon le rôle
   buildBottomNav(USER.role);
   // Load data
