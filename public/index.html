@@ -2939,9 +2939,10 @@ function resetVF(){
 function renderGerMembres(el){
   el.innerHTML=`
   <div class="page-header"><div class="page-title">Gestion des Membres</div><div class="page-sub">${STATE.membres.length} membres · Administration complète</div></div>
-  <div class="btn-row" style="margin-bottom:14px">
-    <button class="btn btn-primary" onclick="openAddMember()">+ Nouveau Membre</button>
-    <button class="btn btn-ghost" onclick="exportCSV()">📥 Export CSV</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+    <button class="btn btn-primary" onclick="openAddMember()">👤 + Nouveau Membre</button>
+    <button class="btn btn-primary" onclick="openImport()" style="background:#27AE60;border-color:#27AE60">📥 Importer Excel/CSV</button>
+    <button class="btn btn-ghost" onclick="exportCSV()">📤 Exporter CSV</button>
   </div>
   <div class="table-card">
     <div class="table-top"><div class="table-title">Tous les membres</div><input class="search-inp" placeholder="Nom, téléphone..." oninput="filterGM(this.value)"></div>
@@ -3853,22 +3854,25 @@ function openImport() {
   document.getElementById('modal-generic-body').innerHTML = `
     <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
     <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or);margin-bottom:6px">📥 Importer des données</div>
-    <div style="font-size:11px;color:var(--tx2);margin-bottom:16px">Importez vos données depuis un fichier Excel (.xlsx) ou CSV</div>
+    <div style="font-size:11px;color:var(--tx2);margin-bottom:14px">Importez depuis un fichier CSV (Tableur Excel → Enregistrer sous → CSV)</div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-      <div onclick="document.getElementById('imp-file').click()" style="background:rgba(245,166,35,.06);border:2px dashed rgba(245,166,35,.3);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--taxi-or)'" onmouseout="this.style.borderColor='rgba(245,166,35,.3)'">
-        <div style="font-size:32px;margin-bottom:8px">📊</div>
-        <div style="font-weight:600;font-size:13px">Fichier Excel / CSV</div>
-        <div style="font-size:10px;color:var(--tx2);margin-top:4px">.xlsx, .csv</div>
-      </div>
-      <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:14px">
-        <div style="font-size:11px;font-weight:600;color:#3B82F6;margin-bottom:8px">Format attendu :</div>
-        <div style="font-size:10px;color:var(--tx2);line-height:1.8">
-          <b>Membres :</b> N°, Prénom, Nom, Téléphone<br>
-          <b>Cotisations :</b> N° Membre, Mois, Montant<br>
-          <b>Banque :</b> Date, Désignation, Entrée, Sortie
-        </div>
-      </div>
+    <!-- Type d'import -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button id="imp-type-membres" onclick="setImpType('membres',this)" class="btn btn-primary btn-sm" style="flex:1">👤 Membres</button>
+      <button id="imp-type-cotisations" onclick="setImpType('cotisations',this)" class="btn btn-ghost btn-sm" style="flex:1">💳 Cotisations</button>
+      <button id="imp-type-banque" onclick="setImpType('banque',this)" class="btn btn-ghost btn-sm" style="flex:1">🏦 Banque</button>
+    </div>
+    
+    <div id="imp-format-hint" style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;padding:10px;font-size:10px;color:var(--tx2);margin-bottom:12px;line-height:1.8">
+      <b>Format CSV Membres :</b><br>
+      Colonne A: N°, B: Prénom, C: Nom, D: Téléphone<br>
+      Exemple : <code style="color:#F5A623">1,DAOUDA,NDIAYE,776351010</code>
+    </div>
+
+    <div onclick="document.getElementById('imp-file').click()" style="background:rgba(245,166,35,.06);border:2px dashed rgba(245,166,35,.3);border-radius:10px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px" id="imp-drop-zone">
+      <div style="font-size:32px;margin-bottom:6px">📂</div>
+      <div style="font-weight:600;font-size:13px">Cliquer pour choisir le fichier CSV</div>
+      <div style="font-size:10px;color:var(--tx2);margin-top:4px">Fichier .csv uniquement</div>
     </div>
 
     <input type="file" id="imp-file" accept=".xlsx,.csv,.xls" style="display:none" onchange="handleImport(this)">
@@ -3888,6 +3892,22 @@ function openImport() {
 }
 
 let _importData = null;
+let _importType = 'membres';
+
+function setImpType(type, btn) {
+  _importType = type;
+  document.querySelectorAll('#imp-type-membres,#imp-type-cotisations,#imp-type-banque').forEach(b=>{
+    b.className='btn btn-ghost btn-sm'; b.style.flex='1';
+  });
+  btn.className='btn btn-primary btn-sm'; btn.style.flex='1';
+  const hints = {
+    membres: '<b>Format CSV Membres :</b><br>Colonne A: N°, B: Prénom, C: Nom, D: Téléphone<br>Exemple : <code style="color:#F5A623">1,DAOUDA,NDIAYE,776351010</code>',
+    cotisations: '<b>Format CSV Cotisations :</b><br>Colonne A: N° Membre, B: Mois, C: Montant<br>Exemple : <code style="color:#F5A623">1,Janvier,2000</code>',
+    banque: '<b>Format CSV Banque :</b><br>Colonne A: Date, B: Désignation, C: Entrée, D: Sortie<br>Exemple : <code style="color:#F5A623">2026-04-16,Versement cotisations,50000,0</code>'
+  };
+  const h = document.getElementById('imp-format-hint');
+  if(h) h.innerHTML = hints[type];
+}
 
 async function handleImport(input) {
   if (!input.files || !input.files[0]) return;
