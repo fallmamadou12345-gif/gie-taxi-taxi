@@ -246,6 +246,21 @@ async function getDB() {
   }
   dbWrapper = makeWrapper(sqlDb);
   dbWrapper.exec(SCHEMA);
+
+  // ── Migrations (colonnes ajoutées après la création initiale) ──
+  const migrations = [
+    "ALTER TABLE produits ADD COLUMN image_b64 TEXT DEFAULT ''",
+    "ALTER TABLE membres ADD COLUMN tel2 TEXT DEFAULT ''",
+    "ALTER TABLE membres ADD COLUMN pin_hash TEXT DEFAULT ''",
+    "ALTER TABLE membres ADD COLUMN notes TEXT DEFAULT ''",
+    "ALTER TABLE membres ADD COLUMN taxi TEXT DEFAULT ''",
+    "ALTER TABLE membres ADD COLUMN adhesion TEXT DEFAULT ''",
+  ];
+  migrations.forEach(sql => {
+    try { dbWrapper.exec(sql); } catch(e) { /* colonne déjà existante */ }
+  });
+  console.log('✅ Migrations appliquées');
+
   seed(dbWrapper);
   return dbWrapper;
 }
