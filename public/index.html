@@ -1262,7 +1262,7 @@ function setLoginType(type) {
 
 function setRole(role) {
   _loginRole = role;
-  ['caissier','directeur','president'].forEach(r => {
+  ['caissier','directeur','president','controleur'].forEach(r => {
     document.getElementById('lr-'+r)?.classList.toggle('lrole-active', r===role);
   });
   document.getElementById('l-pin-s').value = '';
