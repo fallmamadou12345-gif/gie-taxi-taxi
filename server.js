@@ -360,6 +360,18 @@ app.get('/api/taxi', auth, async (req, res) => {
   catch(e) { res.status(500).json({error:e.message}); }
 });
 
+app.post('/api/taxi', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const {periode, entree, sortie, observation, date} = req.body;
+    if (!periode) return res.status(400).json({error:'Période requise'});
+    db.prepare('INSERT INTO taxi_versements(periode,entree,sortie,observation,date) VALUES(?,?,?,?,?)').run(periode, entree||0, sortie||0, observation||'', date||new Date().toISOString().split('T')[0]);
+    const net = (entree||0)-(sortie||0);
+    broadcast('taxi_added', {periode, entree: entree||0, sortie: sortie||0, net, saisi_par: req.user.nom});
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 // ══ STATS ══
 app.get('/api/stats', auth, async (req, res) => {
   try {

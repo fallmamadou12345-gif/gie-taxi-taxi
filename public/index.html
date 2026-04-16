@@ -2156,30 +2156,75 @@ function printRecu(){
 // SAISIE COT (simple)
 function renderSaisieCot(el){
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Saisir une Cotisation</div><div class="page-sub">Enregistrement rapide · Autocomplete membre</div></div>
-  <div class="alert alert-info"><span>💡</span>Cotisation: <b>2 000 FCFA/mois</b> · Amende après le 15: <b>+500 FCFA</b> · Taper 1 lettre pour chercher un membre</div>
+  <div class="page-header"><div class="page-title">Saisir une Cotisation</div><div class="page-sub">Calcul automatique des arriérés</div></div>
+
   <div class="form-card">
-    <div class="form-title">+ Nouveau paiement</div>
-    <div class="form-grid">
-      <div class="form-group ac-wrap" style="position:relative">
-        <label>🔍 Rechercher le membre (nom ou téléphone)</label>
-        <input class="form-input" id="sc-input" placeholder="Ex: DAOUDA ou 776351010..." oninput="acSC(this.value)" autocomplete="off" style="font-size:14px;padding:11px 13px">
-        <div class="ac-list" id="sc-ac"></div>
-        <input type="hidden" id="sc-id">
-      </div>
-      <div class="form-group"><label>Mois</label><select class="form-input" id="sc-mois">${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select></div>
-      <div class="form-group"><label>Montant (FCFA)</label><input class="form-input" id="sc-mt" type="number" value="2000" min="500"></div>
-      <div class="form-group"><label>Mode paiement</label><select class="form-input" id="sc-mode"><option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option></select></div>
-      <div class="form-group"><label>Date</label><input class="form-input" id="sc-date" type="date" value="${today()}"></div>
+    <div class="form-title">+ Enregistrer un paiement</div>
+
+    <!-- RECHERCHE MEMBRE -->
+    <div class="form-group ac-wrap" style="position:relative;margin-bottom:14px">
+      <label>🔍 Membre (nom ou téléphone)</label>
+      <input class="form-input" id="sc-input" placeholder="Ex: IBRAHIMA ou 775989102..."
+        oninput="acSC(this.value)" autocomplete="off" style="font-size:15px;padding:13px 14px">
+      <div class="ac-list" id="sc-ac"></div>
+      <input type="hidden" id="sc-id">
     </div>
-    <div id="sc-member-info" style="display:none;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);border-radius:8px;padding:10px 13px;font-size:12px;color:var(--color-text-success,#27AE60);margin-bottom:10px"></div>
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveSC()" style="font-size:14px;padding:11px 24px">✅ ENREGISTRER LA COTISATION</button>
-      <button class="btn btn-ghost" onclick="resetSCForm()">Annuler</button>
+
+    <!-- SITUATION DU MEMBRE (affiché après sélection) -->
+    <div id="sc-situation" style="display:none;margin-bottom:16px;border-radius:10px;overflow:hidden;border:1px solid rgba(245,166,35,.2)">
+      <div style="background:rgba(245,166,35,.07);padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div id="sc-sit-nom" style="font-weight:700;font-size:14px"></div>
+          <div id="sc-sit-detail" style="font-size:11px;color:var(--tx2);margin-top:2px"></div>
+        </div>
+        <div id="sc-sit-badge"></div>
+      </div>
+      <!-- ARRIÉRÉS -->
+      <div id="sc-arriere-box" style="display:none;padding:12px 14px;background:rgba(231,76,60,.06);border-top:1px solid rgba(231,76,60,.15)">
+        <div style="font-size:11px;font-weight:600;color:#E74C3C;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">⚠️ Arriérés à régulariser</div>
+        <div id="sc-arriere-list" style="font-size:11px;color:var(--tx2)"></div>
+      </div>
+      <!-- RÉPARTITION DU PAIEMENT -->
+      <div id="sc-repartition" style="display:none;padding:12px 14px;background:rgba(39,174,96,.05);border-top:1px solid rgba(39,174,96,.15)">
+        <div style="font-size:11px;font-weight:600;color:#27AE60;margin-bottom:8px">✅ Répartition automatique du paiement</div>
+        <div id="sc-rep-list" style="font-size:11px"></div>
+      </div>
+    </div>
+
+    <!-- SAISIE MONTANT + OPTIONS -->
+    <div id="sc-form-fields" style="display:none">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>💵 Montant versé (FCFA)</label>
+          <input class="form-input" id="sc-mt" type="number" value="2000" min="500"
+            oninput="calcRepartition()" style="font-size:18px;font-weight:700;padding:13px 14px">
+        </div>
+        <div class="form-group">
+          <label>Mode paiement</label>
+          <select class="form-input" id="sc-mode" style="font-size:14px">
+            <option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input class="form-input" id="sc-date" type="date" value="${today()}" oninput="calcRepartition()">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveSC()" style="font-size:15px;padding:13px 28px">
+          💾 ENREGISTRER
+        </button>
+        <button class="btn btn-ghost" onclick="resetSCForm()">Annuler</button>
+      </div>
     </div>
   </div>
-  <div class="table-card"><div class="table-top"><div class="table-title">Saisies · session en cours</div></div>
-    <div class="table-responsive"><table><thead><tr><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Date</th><th>Reçu</th></tr></thead><tbody id="sc-hist"></tbody></table></div>
+
+  <!-- HISTORIQUE SESSION -->
+  <div class="table-card"><div class="table-top"><div class="table-title">✅ Saisies · session en cours</div></div>
+    <div class="table-responsive"><table>
+      <thead><tr><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Reçu</th></tr></thead>
+      <tbody id="sc-hist"></tbody>
+    </table></div>
   </div>`;
   renderSCHist();
 }
@@ -2215,31 +2260,148 @@ function acSC(q){
   }).join('');
   ac.classList.add('show');
 }
-function selSC(id,name,total,mois){
-  document.getElementById('sc-input').value=name;
-  document.getElementById('sc-id').value=id;
+function selSC(id, name, total, moisPaies) {
+  document.getElementById('sc-input').value = name;
+  document.getElementById('sc-id').value = id;
   document.getElementById('sc-ac').classList.remove('show');
-  // Show info below input
-  const info=document.getElementById('sc-member-info');
-  if(info){info.style.display='block';info.innerHTML=`✅ <b>${name}</b> sélectionné · ${mois}/12 mois payés · Total: ${Number(total).toLocaleString('fr-FR')} F`;}
+
+  const m = STATE.membres.find(x => x.id == id);
+  if (!m) return;
+
+  // Afficher situation
+  document.getElementById('sc-situation').style.display = 'block';
+  document.getElementById('sc-form-fields').style.display = 'block';
+  document.getElementById('sc-sit-nom').textContent = name;
+
+  const retard = m.mois_restants || 0;
+  const payes = m.mois_payes || 0;
+  document.getElementById('sc-sit-detail').textContent =
+    `${payes}/12 mois payés · Total 2026: ${Number(m.total_2026||0).toLocaleString('fr-FR')} F`;
+
+  // Badge statut
+  const badgeEl = document.getElementById('sc-sit-badge');
+  if (retard === 0) {
+    badgeEl.innerHTML = '<span class="badge b-v" style="font-size:11px;padding:5px 10px">✅ À JOUR</span>';
+  } else {
+    badgeEl.innerHTML = `<span class="badge b-r" style="font-size:11px;padding:5px 10px">⚠️ ${retard} MOIS DE RETARD</span>`;
+  }
+
+  // Calculer les mois non payés
+  const moisPayes = Object.keys(m.cotisations_2026 || {});
+  const moisNonPaies = MONTHS.filter(mo => !moisPayes.includes(mo));
+
+  if (moisNonPaies.length > 0) {
+    document.getElementById('sc-arriere-box').style.display = 'block';
+    document.getElementById('sc-arriere-list').innerHTML =
+      moisNonPaies.map(mo => `<span style="display:inline-block;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);border-radius:4px;padding:2px 8px;margin:2px;color:#E74C3C">${mo} — 2 000 F</span>`).join('');
+    // Pré-remplir le montant selon les arriérés
+    const today_d = parseInt(today().split('-')[2]);
+    const mntSuggere = moisNonPaies.length === 1
+      ? (today_d > 15 ? 2500 : 2000)
+      : (moisNonPaies.length * 2000 + (today_d > 15 ? 500 : 0));
+    document.getElementById('sc-mt').value = Math.min(mntSuggere, moisNonPaies.length * 2500);
+  } else {
+    document.getElementById('sc-arriere-box').style.display = 'none';
+    document.getElementById('sc-mt').value = today().split('-')[2] > '15' ? 2500 : 2000;
+  }
+
+  calcRepartition();
 }
-async function saveSC(){
-  const mid=document.getElementById('sc-id').value;
-  const mois=document.getElementById('sc-mois').value;
-  const montant=parseInt(document.getElementById('sc-mt').value)||0;
-  const mode=document.getElementById('sc-mode').value;
-  const date=document.getElementById('sc-date').value;
-  if(!mid||montant<500){toast('⚠️ Membre et montant requis','w');return;}
-  try{
-    const r=await POST('/api/cotisations',{membre_id:mid,mois,montant,mode,date});
-    const m=STATE.membres.find(x=>x.id==mid);
-    SC_HIST.unshift({membre:m?.prenom+' '+m?.nom,mois,montant,mode,date,ref:r.ref});
-    toast('✅ '+f(montant)+' · '+(m?.prenom)+' · '+mois);
+
+function calcRepartition() {
+  const mid = document.getElementById('sc-id').value;
+  if (!mid) return;
+  const m = STATE.membres.find(x => x.id == mid);
+  if (!m) return;
+  const montant = parseInt(document.getElementById('sc-mt').value) || 0;
+  const dateVal = document.getElementById('sc-date')?.value || today();
+  const jour = parseInt(dateVal.split('-')[2]);
+  const apres15 = jour > 15;
+
+  const moisPayes = Object.keys(m.cotisations_2026 || {});
+  const moisNonPaies = MONTHS.filter(mo => !moisPayes.includes(mo));
+
+  if (!montant || moisNonPaies.length === 0) {
+    document.getElementById('sc-repartition').style.display = 'none';
+    return;
+  }
+
+  // Répartition: arriérés d'abord, puis mois en cours
+  const repartition = [];
+  let reste = montant;
+  for (let i = 0; i < moisNonPaies.length && reste > 0; i++) {
+    const mo = moisNonPaies[i];
+    const isCurrentMonth = (i === moisNonPaies.length - 1);
+    // Amende +500F si après le 15 ET c'est le mois en cours
+    const tarif = (isCurrentMonth && apres15 && i === moisNonPaies.length - 1) ? 2500 : 2000;
+    const paye = Math.min(tarif, reste);
+    repartition.push({ mois: mo, montant: paye, complet: paye >= tarif, tarif });
+    reste -= paye;
+  }
+
+  const rep = document.getElementById('sc-repartition');
+  const list = document.getElementById('sc-rep-list');
+  rep.style.display = 'block';
+  list.innerHTML = repartition.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      <span>${r.mois}${r.tarif===2500?' <small style="color:#F5A623">(après le 15)</small>':''}</span>
+      <span style="color:${r.complet?'#27AE60':'#F5A623'};font-weight:700">${f(r.montant)} ${r.complet?'✅':'⚠️ partiel'}</span>
+    </div>`
+  ).join('') + (reste > 0 ? `<div style="margin-top:6px;color:#F5A623;font-size:10px">💡 Excédent: ${f(reste)} — sera affecté au prochain mois</div>` : '');
+}
+
+async function saveSC() {
+  const mid = document.getElementById('sc-id').value;
+  const montant = parseInt(document.getElementById('sc-mt').value) || 0;
+  const mode = document.getElementById('sc-mode').value;
+  const dateVal = document.getElementById('sc-date').value;
+  const jour = parseInt(dateVal.split('-')[2]);
+  const apres15 = jour > 15;
+
+  if (!mid || montant < 500) { toast('⚠️ Sélectionner un membre et montant min 500 F', 'w'); return; }
+
+  const m = STATE.membres.find(x => x.id == mid);
+  if (!m) { toast('⚠️ Membre introuvable', 'w'); return; }
+
+  const moisPayes = Object.keys(m.cotisations_2026 || {});
+  const moisNonPaies = MONTHS.filter(mo => !moisPayes.includes(mo));
+
+  let reste = montant;
+  const saisies = [];
+
+  for (let i = 0; i < moisNonPaies.length && reste > 0; i++) {
+    const mo = moisNonPaies[i];
+    const isCurrentMonth = (i === moisNonPaies.length - 1);
+    const tarif = (isCurrentMonth && apres15) ? 2500 : 2000;
+    const paye = Math.min(tarif, reste);
+    saisies.push({ mois: mo, montant: paye });
+    reste -= paye;
+  }
+
+  // Si pas d'arriérés ou montant restant, saisir pour mois courant suivant
+  if (saisies.length === 0) {
+    const moisIdx = new Date().getMonth();
+    const mo = MONTHS[moisIdx] || MONTHS[0];
+    const tarif = apres15 ? 2500 : 2000;
+    saisies.push({ mois: mo, montant: Math.min(tarif, montant) });
+  }
+
+  try {
+    let lastRef = '';
+    for (const s of saisies) {
+      const r = await POST('/api/cotisations', { membre_id: mid, mois: s.mois, montant: s.montant, mode, date: dateVal });
+      lastRef = r.ref;
+      SC_HIST.unshift({ membre: m.prenom+' '+m.nom, mois: s.mois, montant: s.montant, mode, date: dateVal, ref: r.ref });
+    }
+    const total = saisies.reduce((s, x) => s + x.montant, 0);
+    const moisStr = saisies.map(s => s.mois).join(', ');
+    toast(`✅ ${f(total)} enregistré · ${m.prenom} · ${moisStr}`);
     renderSCHist();
-    document.getElementById('sc-input').value='';document.getElementById('sc-id').value='';document.getElementById('sc-mt').value=2000;
     await loadAll();
-    showRecu({ref:r.ref,date,client:m?.prenom+' '+m?.nom,type:'COTISATION',designation:'Cotisation '+mois,mode,montant,note:''});
-  }catch(e){toast('❌ '+e.message,'e');}
+    resetSCForm();
+    if (lastRef) showRecu({ ref: lastRef, date: dateVal, client: m.prenom+' '+m.nom, type: 'COTISATION',
+      designation: 'Cotisation ' + moisStr, mode, montant: total, note: saisies.length > 1 ? `${saisies.length} mois régularisés` : '' });
+  } catch(e) { toast('❌ ' + e.message, 'e'); }
 }
 function renderSCHist(){
   const tbody=document.getElementById('sc-hist');if(!tbody)return;
@@ -2609,17 +2771,60 @@ async function adjStock(id,delta){try{const r=await PATCH('/api/produits/'+id+'/
 
 // BANQUE
 async function renderBanque(el){
-  const data=await GET('/api/banque');const solde=await GET('/api/banque/solde');
+  const data=await GET('/api/banque'); const solde=await GET('/api/banque/solde');
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Banque</div><div class="page-sub">CMS · BOA · Mouvements</div></div>
-  <div class="stat-grid">
+  <div class="page-header"><div class="page-title">🏦 Banque</div><div class="page-sub">CMS · BOA · Mouvements</div></div>
+  <div class="stat-grid" style="margin-bottom:16px">
     <div class="stat-card sc-v"><div class="stat-icon">🏦</div><div class="stat-label">Solde actuel</div><div class="stat-value">${fk(solde.solde||0)}</div></div>
     <div class="stat-card sc-v"><div class="stat-icon">⬆️</div><div class="stat-label">Total entrées</div><div class="stat-value">${fk(solde.total_entrees||0)}</div></div>
     <div class="stat-card sc-r"><div class="stat-icon">⬇️</div><div class="stat-label">Total sorties</div><div class="stat-value">${fk(solde.total_sorties||0)}</div></div>
   </div>
-  <div class="table-card"><div class="table-top"><div class="table-title">Mouvements bancaires</div></div>
-  <div class="table-responsive"><table><thead><tr><th>Date</th><th>Désignation</th><th>Banque</th><th>Entrée</th><th>Sortie</th><th>Par</th></tr></thead>
-  <tbody>${data.map(b=>`<tr><td>${b.date}</td><td><b>${b.designation}</b></td><td><span class="badge b-b">${b.banque}</span></td><td style="color:var(--taxi-vert-clair)">${b.entree>0?f(b.entree):'—'}</td><td style="color:var(--taxi-rouge-clair)">${b.sortie>0?f(b.sortie):'—'}</td><td style="color:var(--tx2)">${b.saisi_par||'—'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title">+ Nouveau mouvement bancaire</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Désignation</label><input class="form-input" id="bq-desig" placeholder="Ex: Versement cotisations Avril..." style="font-size:13px"></div>
+      <div class="form-group"><label>Banque</label>
+        <select class="form-input" id="bq-banque">
+          <option value="CMS">CMS — Crédit Mutuel</option>
+          <option value="BOA">BOA — Bank of Africa</option>
+          <option value="Wave">Wave Business</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Entrée (FCFA)</label><input class="form-input" id="bq-entree" type="number" placeholder="0" min="0" style="font-size:13px"></div>
+      <div class="form-group"><label>Sortie (FCFA)</label><input class="form-input" id="bq-sortie" type="number" placeholder="0" min="0" style="font-size:13px"></div>
+      <div class="form-group"><label>Date</label><input class="form-input" id="bq-date" type="date" value="${today()}"></div>
+      <div class="form-group"><label>Référence</label><input class="form-input" id="bq-ref" placeholder="N° virement ou chèque..." style="font-size:13px"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveBanque()">💾 ENREGISTRER</button></div>
+  </div>
+  <div class="table-card"><div class="table-top"><div class="table-title">Historique mouvements</div></div>
+  <div class="table-responsive"><table><thead><tr><th>Date</th><th>Désignation</th><th>Banque</th><th>Entrée</th><th>Sortie</th><th>Réf</th><th>Par</th></tr></thead>
+  <tbody>${data.map(b=>`<tr>
+    <td style="color:var(--tx2)">${b.date}</td>
+    <td><b>${b.designation}</b></td>
+    <td><span class="badge b-b">${b.banque}</span></td>
+    <td style="color:#27AE60;font-weight:${b.entree>0?'700':'400'}">${b.entree>0?f(b.entree):'—'}</td>
+    <td style="color:#E74C3C;font-weight:${b.sortie>0?'700':'400'}">${b.sortie>0?f(b.sortie):'—'}</td>
+    <td style="color:var(--tx2);font-size:9px">${b.ref||'—'}</td>
+    <td style="color:var(--tx2);font-size:9px">${b.saisi_par||'—'}</td>
+  </tr>`).join('')}</tbody></table></div></div>`;
+}
+
+async function saveBanque() {
+  const desig = document.getElementById('bq-desig').value.trim();
+  const banque = document.getElementById('bq-banque').value;
+  const entree = parseInt(document.getElementById('bq-entree').value)||0;
+  const sortie = parseInt(document.getElementById('bq-sortie').value)||0;
+  const date = document.getElementById('bq-date').value;
+  const ref = document.getElementById('bq-ref').value.trim();
+  if (!desig) { toast('⚠️ Désignation requise','w'); return; }
+  if (!entree && !sortie) { toast('⚠️ Entrée ou sortie requise','w'); return; }
+  try {
+    await POST('/api/banque', {date, designation: desig, banque, entree, sortie, ref});
+    toast('✅ Mouvement banque enregistré');
+    await renderBanque(document.getElementById('page-banque'));
+    await loadAll();
+  } catch(e) { toast('❌ '+e.message,'e'); }
 }
 
 // DEPENSES
@@ -2641,15 +2846,55 @@ async function renderTaxi(el){
   const data=await GET('/api/taxi');
   const totE=data.reduce((s,t)=>s+(t.entree||0),0),totS=data.reduce((s,t)=>s+(t.sortie||0),0);
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Taxi GIE</div><div class="page-sub">Versements hebdomadaires</div></div>
-  <div class="stat-grid">
+  <div class="page-header"><div class="page-title">🚖 Taxi GIE</div><div class="page-sub">Versements hebdomadaires · Suivi dépenses</div></div>
+  <div class="stat-grid" style="margin-bottom:16px">
     <div class="stat-card sc-v"><div class="stat-icon">⬆️</div><div class="stat-label">Total entrées</div><div class="stat-value">${fk(totE)}</div></div>
     <div class="stat-card sc-r"><div class="stat-icon">⬇️</div><div class="stat-label">Total sorties</div><div class="stat-value">${fk(totS)}</div></div>
-    <div class="stat-card sc-or"><div class="stat-icon">🏆</div><div class="stat-label">Net versé</div><div class="stat-value">${fk(totE-totS)}</div></div>
+    <div class="stat-card sc-or"><div class="stat-icon">🏆</div><div class="stat-label">Net taxi</div><div class="stat-value">${fk(totE-totS)}</div></div>
   </div>
-  <div class="table-card"><div class="table-top"><div class="table-title">Versements semaine par semaine</div></div>
-  <div class="table-responsive"><table><thead><tr><th>Période</th><th>Entrée</th><th>Sortie</th><th>Net</th><th>Observation</th></tr></thead>
-  <tbody>${data.map(t=>{const net=t.entree-t.sortie;return`<tr><td><b>${t.periode}</b></td><td style="color:var(--taxi-vert-clair)">${f(t.entree)}</td><td style="color:${t.sortie>0?'var(--taxi-rouge-clair)':'var(--tx2)'}">${t.sortie>0?f(t.sortie):'—'}</td><td style="color:${net>=0?'var(--taxi-vert-clair)':'var(--taxi-rouge-clair)'};font-weight:700">${net>=0?'+':''}<b>${f(net)}</b></td><td style="color:var(--tx2)">${t.observation||'—'}</td></tr>`}).join('')}</tbody></table></div></div>`;
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title">+ Nouveau versement taxi</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Période (ex: DU 14 AU 20 AVR 2026)</label>
+        <input class="form-input" id="tx-periode" placeholder="DU XX AU XX MOIS ANNÉE" style="font-size:13px"></div>
+      <div class="form-group"><label>Entrée — Versement chauffeur (FCFA)</label>
+        <input class="form-input" id="tx-entree" type="number" placeholder="0" min="0" style="font-size:14px;font-weight:700"></div>
+      <div class="form-group"><label>Sortie — Dépense taxi (FCFA)</label>
+        <input class="form-input" id="tx-sortie" type="number" placeholder="0" min="0" style="font-size:13px"></div>
+      <div class="form-group"><label>Observation (nature dépense)</label>
+        <input class="form-input" id="tx-obs" placeholder="Ex: assurance, pneu, huile..." style="font-size:13px"></div>
+      <div class="form-group"><label>Date</label>
+        <input class="form-input" id="tx-date" type="date" value="${today()}"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveTaxi()">💾 ENREGISTRER</button></div>
+  </div>
+  <div class="table-card"><div class="table-top"><div class="table-title">Historique semaine par semaine</div></div>
+  <div class="table-responsive"><table>
+    <thead><tr><th>Période</th><th>Entrée</th><th>Sortie</th><th>Net</th><th>Observation</th></tr></thead>
+    <tbody>${data.map(t=>{const net=(t.entree||0)-(t.sortie||0);return`<tr>
+      <td><b>${t.periode}</b></td>
+      <td style="color:#27AE60;font-weight:700">${f(t.entree||0)}</td>
+      <td style="color:${t.sortie>0?'#E74C3C':'var(--tx2)'}">${t.sortie>0?f(t.sortie):'—'}</td>
+      <td style="color:${net>=0?'#27AE60':'#E74C3C'};font-weight:700">${net>=0?'+':''}${f(net)}</td>
+      <td style="color:var(--tx2);font-size:10px">${t.observation||'—'}</td>
+    </tr>`}).join('')}</tbody>
+  </table></div></div>`;
+}
+
+async function saveTaxi() {
+  const periode = document.getElementById('tx-periode').value.trim().toUpperCase();
+  const entree = parseInt(document.getElementById('tx-entree').value)||0;
+  const sortie = parseInt(document.getElementById('tx-sortie').value)||0;
+  const obs = document.getElementById('tx-obs').value.trim();
+  const date = document.getElementById('tx-date').value;
+  if (!periode) { toast('⚠️ Période requise','w'); return; }
+  if (!entree && !sortie) { toast('⚠️ Entrée ou sortie requise','w'); return; }
+  try {
+    await POST('/api/taxi', {periode, entree, sortie, observation: obs, date});
+    toast('✅ Versement taxi enregistré · Net: '+f(entree-sortie));
+    await renderTaxi(document.getElementById('page-taxi'));
+    await loadAll();
+  } catch(e) { toast('❌ '+e.message,'e'); }
 }
 
 // JOURNAL
