@@ -24,7 +24,8 @@ function broadcast(event, data) {
 app.use(compression());
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Middleware auth
@@ -573,6 +574,23 @@ app.post('/api/change-pin', auth, async (req, res) => {
       db.prepare('UPDATE staff SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(new_pin, 10), req.user.id);
     }
     res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══ DEBUG ══
+app.get('/api/debug/status', async (req, res) => {
+  try {
+    const db = await getDB();
+    const membres = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
+    const staff = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
+    const produits = db.prepare('SELECT COUNT(*) as n FROM produits').get().n;
+    const cotisations = db.prepare('SELECT COUNT(*) as n FROM cotisations').get().n;
+    const { DB_PATH } = require('./db');
+    const fs = require('fs');
+    const size = fs.existsSync(process.env.DB_PATH || './data/gie.db') 
+      ? (fs.statSync(process.env.DB_PATH || './data/gie.db').size/1024).toFixed(1) + ' KB'
+      : 'N/A';
+    res.json({ ok: true, membres, staff, produits, cotisations, db_size: size });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
