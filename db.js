@@ -271,4 +271,16 @@ async function forceSeed() {
   } catch(e) { console.error('❌ forceSeed:', e.message); throw e; }
 }
 
-module.exports = { getDB, saveDB, forceSeed };
+async function reloadFromDisk() {
+  const initSqlJs = require('sql.js');
+  const SQL = await initSqlJs();
+  if (!fs.existsSync(DB_PATH)) throw new Error('DB file not found: ' + DB_PATH);
+  const freshDb = new SQL.Database(fs.readFileSync(DB_PATH));
+  dbWrapper = makeWrapper(freshDb);
+  _db = freshDb;
+  const n = dbWrapper.prepare('SELECT COUNT(*) as n FROM membres').get().n;
+  console.log('✅ DB rechargée depuis disque:', n, 'membres');
+  return dbWrapper;
+}
+
+module.exports = { getDB, saveDB, forceSeed, reloadFromDisk };

@@ -589,6 +589,20 @@ app.post('/api/admin/reseed', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Reload DB from disk into memory
+app.post('/api/admin/reload', async (req, res) => {
+  const { secret } = req.body;
+  if (secret !== 'gie2026reseed') return res.status(403).json({ error: 'Interdit' });
+  try {
+    const dbModule = require('./db');
+    await dbModule.reloadFromDisk();
+    const db = await dbModule.getDB();
+    const n = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
+    const s = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
+    res.json({ ok: true, membres: n, staff: s, message: 'DB rechargée depuis disque' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/debug/status', async (req, res) => {
   try {
     // Force fresh DB instance check
