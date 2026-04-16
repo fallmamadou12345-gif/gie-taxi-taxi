@@ -220,7 +220,7 @@ body::after {
 .dbtn-d { border-color: var(--taxi-or); color: var(--taxi-or); }
 
 /* ── NOUVEAU LOGIN ── */
-.ltype-row { display:flex; gap:10px; margin-bottom:16px; width:100%; max-width:360px; }
+.ltype-row { display:flex; gap:10px; margin-bottom:16px; width:100%; max-width:400px; }
 .ltype-btn {
   flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
   padding:14px 10px; border-radius:12px; border:2px solid rgba(245,166,35,.25);
@@ -435,7 +435,7 @@ body::after {
   transition: border-color .2s;
 }
 .search-inp:focus { border-color: var(--taxi-or); }
-.table-responsive { overflow-x: auto; }
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
 th {
   padding: 8px 12px;
@@ -754,28 +754,34 @@ select.form-input option { background: var(--bg2); }
 .bottom-nav {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-  height: var(--bottom-h);
+  height: var(--bottom-h, 60px);
   background: rgba(13,8,0,0.97);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
-  padding: 0 4px;
+  padding: 0 2px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-.bottom-nav-inner { display: flex; height: 100%; align-items: center; }
+.bottom-nav-inner {
+  display: flex; height: 60px; align-items: stretch;
+}
 .bnav-item {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 6px 4px;
+  padding: 4px 2px;
   cursor: pointer;
   color: var(--tx2);
   font-size: 9px;
   letter-spacing: .3px;
   text-transform: uppercase;
-  border-radius: 8px;
-  transition: all .2s;
+  border-radius: 6px;
+  transition: all .15s;
   gap: 3px;
-  min-height: 52px;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
 }
-.bnav-item.active { color: var(--taxi-or); background: rgba(245,166,35,.07); }
-.bnav-icon { font-size: 20px; }
+.bnav-item.active { color: var(--taxi-or); background: rgba(245,166,35,.08); }
+.bnav-item:active { opacity: .6; transform: scale(.95); }
+.bnav-icon { font-size: 19px; line-height: 1; }
+.bnav-lbl { font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52px; text-align: center; }
 
 /* ════════ LOADING ════════ */
 .loader {
@@ -874,28 +880,115 @@ select.form-input option { background: var(--bg2); }
 
 /* ════════ RESPONSIVE MOBILE ════════ */
 @media (max-width: 768px) {
-  :root { --nav-h: 52px; }
-  .sidebar { display: none; }
-  .content { margin-left: 0; padding: 12px 12px 80px; }
+  :root { --nav-h: 52px; --bottom-h: 60px; }
+
+  /* Layout */
+  .sidebar { display: none !important; }
+  .content { margin-left: 0; padding: 10px 10px 72px; }
   .bottom-nav { display: block; }
-  .stat-grid { grid-template-columns: 1fr 1fr; }
-  .stat-card { padding: 11px; }
-  .stat-value { font-size: 15px; }
-  .form-grid { grid-template-columns: 1fr; }
-  .enc-type-grid { grid-template-columns: repeat(2, 1fr); }
-  .vtype-grid { grid-template-columns: 1fr; }
-  .table-card { border-radius: 8px; }
-  table { font-size: 10px; }
-  th, td { padding: 7px 8px; }
+
+  /* Top nav */
+  .topnav { padding: 0 12px; }
   .user-badge span:not(.user-dot) { display: none; }
-  .logout-btn { font-size: 0; padding: 5px 8px; }
-  .logout-btn::after { content: '⎋'; font-size: 14px; }
-  .welcome-icon { font-size: 36px; }
+  .logout-btn span { display: none; }
+  .logout-btn::after { content: '⎋'; font-size: 15px; }
+
+  /* Page header */
+  .page-header { margin-bottom: 14px; }
+  .page-title { font-size: 17px; }
+
+  /* Stat cards — 2 colonnes compactes */
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .stat-card { padding: 10px 11px; }
+  .stat-value { font-size: 15px; }
+  .stat-icon { font-size: 18px; }
+  .stat-sub { font-size: 9px; }
+
+  /* Forms — 1 colonne */
+  .form-grid { grid-template-columns: 1fr !important; gap: 10px; }
+  .form-card { padding: 14px; border-radius: 10px; margin-bottom: 12px; }
+  .form-input { font-size: 15px; padding: 11px 12px; }
+  .btn-row { flex-direction: column; gap: 8px; }
+  .btn { width: 100%; justify-content: center; padding: 13px; font-size: 14px; }
+  .btn-sm { width: auto; padding: 6px 12px; font-size: 10px; }
+
+  /* Tables — scroll horizontal */
+  .table-card { border-radius: 10px; overflow: hidden; }
+  .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { font-size: 10px; min-width: 480px; }
+  th, td { padding: 8px 9px; white-space: nowrap; }
+
+  /* Encaissement tabs — 3 par ligne */
+  .enc-tab { padding: 10px 4px !important; }
+  .enc-tab div:first-child { font-size: 16px !important; }
+  .enc-tab div:last-child { font-size: 8px !important; }
+
+  /* Vente type selector — 1 colonne */
+  .vtype-grid { grid-template-columns: 1fr; gap: 8px; }
+  .vtype-card { padding: 12px; }
+
+  /* Welcome banner */
+  .welcome-icon { display: none; }
+  .welcome-greeting { font-size: 15px; }
+
+  /* Login */
+  .login-container { padding: 16px; gap: 12px; }
+  .login-card { padding: 18px 16px; }
+  .ltype-row { gap: 8px; }
+  .ltype-btn { padding: 12px 8px; font-size: 11px; }
+  .lrole-row { gap: 6px; }
+  .lrole-btn { padding: 9px 4px; font-size: 10px; }
+  .login-title { font-size: 26px; }
+
+  /* AC dropdown */
+  .ac-list { max-height: 250px; }
+  .ac-item { padding: 12px 14px; }
+
+  /* Modal reçu */
+  .modal-overlay { padding: 10px; }
+  .modal-recu { width: 100%; max-width: 100%; margin: 0; }
+
+  /* Dashboard credits table */
+  .cred-table-wrap { overflow-x: auto; }
+
+  /* Enc day stats — 2 col */
+  #enc-day-stats.stat-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Parametres */
+  .lrole-row { flex-wrap: wrap; }
 }
+
 @media (max-width: 480px) {
-  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .recu-grid { grid-template-columns: 1fr; }
-  .cib-grid { grid-template-columns: 1fr 1fr; }
+  :root { --nav-h: 48px; }
+  .content { padding: 8px 8px 68px; }
+  .stat-grid { gap: 6px; }
+  .stat-card { padding: 9px 10px; }
+  .stat-value { font-size: 14px; }
+  .form-card { padding: 12px; }
+  .page-title { font-size: 16px; }
+  table { font-size: 9px; }
+  th, td { padding: 7px 8px; }
+  .welcome-banner { padding: 12px 14px; }
+  .welcome-greeting { font-size: 14px; }
+  
+  /* Encaissement grid compact */
+  .enc-credit-box-inner { grid-template-columns: 1fr 1fr !important; }
+  .enc-main-grid { grid-template-columns: 1fr !important; }
+  
+  /* Login compact */
+  .login-logo-area { margin-bottom: 10px; }
+  .login-taxi-icon { font-size: 40px; }
+  .login-title { font-size: 22px; }
+  .linput { font-size: 16px; padding: 11px 12px; }
+  .lbtn { padding: 14px; font-size: 15px; }
+}
+
+/* Empêcher zoom sur focus iOS */
+@media (max-width: 768px) {
+  input[type="text"], input[type="number"], input[type="tel"],
+  input[type="password"], input[type="date"], select, textarea {
+    font-size: 16px !important;
+  }
 }
 @media print {
   body { background: white !important; color: black !important; }
@@ -1071,13 +1164,9 @@ select.form-input option { background: var(--bg2); }
   </main>
 
   <!-- BOTTOM NAV (mobile) -->
-  <nav class="bottom-nav">
-    <div class="bottom-nav-inner">
-      <div class="bnav-item active" id="bnav-dashboard" onclick="nav('dashboard',null,'dashboard')"><span class="bnav-icon">📊</span>Accueil</div>
-      <div class="bnav-item" id="bnav-mycot" onclick="nav('mycot',null,'mycot')"><span class="bnav-icon">💳</span>Cotis.</div>
-      <div class="bnav-item" id="bnav-credits" onclick="nav('credits',null,'credits')"><span class="bnav-icon">🔋</span>Crédits</div>
-      <div class="bnav-item" id="bnav-encaissement" onclick="nav('encaissement',null,'encaissement')" style="display:none"><span class="bnav-icon">💵</span>Caisse</div>
-      <div class="bnav-item" id="bnav-membres" onclick="nav('membres',null,'membres')"><span class="bnav-icon">👥</span>Membres</div>
+  <nav class="bottom-nav" id="bottom-nav">
+    <div class="bottom-nav-inner" id="bnav-inner">
+      <!-- Items injectés dynamiquement selon le rôle -->
     </div>
   </nav>
 </div>
@@ -1253,13 +1342,51 @@ async function startApp() {
   document.getElementById('u-name').textContent = USER.nom;
   const roleClass = {membre:'ud-m',caissier:'ud-c',directeur:'ud-d',president:'ud-p'}[USER.role]||'ud-m';
   document.getElementById('u-dot').className = 'user-dot ' + roleClass;
-  // Nav visibility
-  document.querySelectorAll('.staff-only').forEach(el=>el.style.display=(USER.role!=='membre'?'':'none'));
-  document.querySelectorAll('.dir-only').forEach(el=>el.style.display=(['directeur','president'].includes(USER.role)?'':'none'));
-  if (USER.role!=='membre') document.getElementById('bnav-encaissement').style.display='flex';
+  // Nav visibility (sidebar)
+  const isStaff = USER.role !== 'membre';
+  const isDir = ['directeur','president'].includes(USER.role);
+  document.querySelectorAll('.staff-only').forEach(el=>el.style.display=(isStaff?'':'none'));
+  document.querySelectorAll('.dir-only').forEach(el=>el.style.display=(isDir?'':'none'));
+  // Build bottom nav dynamiquement selon le rôle
+  buildBottomNav(USER.role);
   // Load data
   await loadAll();
   nav('dashboard', document.querySelector('[data-page="dashboard"]'));
+}
+
+function buildBottomNav(role) {
+  const inner = document.getElementById('bnav-inner');
+  if (!inner) return;
+  const isStaff = role !== 'membre';
+  const isDir = ['directeur','president'].includes(role);
+
+  // Définir les items selon le rôle
+  const items = isDir ? [
+    {page:'dashboard', icon:'📊', lbl:'Accueil'},
+    {page:'encaissement', icon:'💵', lbl:'Caisse'},
+    {page:'saisie-cot', icon:'✍️', lbl:'Cotis.'},
+    {page:'membres', icon:'👥', lbl:'Membres'},
+    {page:'journal', icon:'🧾', lbl:'Journal'},
+  ] : isStaff ? [
+    {page:'dashboard', icon:'📊', lbl:'Accueil'},
+    {page:'encaissement', icon:'💵', lbl:'Caisse'},
+    {page:'saisie-cot', icon:'✍️', lbl:'Cotis.'},
+    {page:'nouvelle-vente', icon:'🛒', lbl:'Vente'},
+    {page:'membres', icon:'👥', lbl:'Membres'},
+  ] : [
+    {page:'dashboard', icon:'📊', lbl:'Accueil'},
+    {page:'mycot', icon:'💳', lbl:'Mes Cotis.'},
+    {page:'mycred', icon:'🔋', lbl:'Mes Crdts'},
+    {page:'membres', icon:'👥', lbl:'Membres'},
+    {page:'produits', icon:'🛍️', lbl:'Produits'},
+  ];
+
+  inner.innerHTML = items.map(it =>
+    `<div class="bnav-item" id="bnav-${it.page}" onclick="nav('${it.page}',null)">
+      <span class="bnav-icon">${it.icon}</span>
+      <span class="bnav-lbl">${it.lbl}</span>
+    </div>`
+  ).join('');
 }
 
 async function loadAll() {
@@ -1285,16 +1412,22 @@ async function loadAll() {
 // ═══════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════
-function nav(pageId, el, bnav) {
+function nav(pageId, el) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n=>n.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if (pg) pg.classList.add('active');
   if (el) el.classList.add('active');
-  if (bnav) { const bn=document.getElementById('bnav-'+bnav); if(bn)bn.classList.add('active'); }
-  else if (el) document.querySelectorAll('.nav-item.active[data-page="'+pageId+'"]');
+  // Sync bottom nav
+  const bn = document.getElementById('bnav-'+pageId);
+  if (bn) bn.classList.add('active');
+  // Also sync sidebar
+  const si = document.querySelector('[data-page="'+pageId+'"]');
+  if (si) si.classList.add('active');
   STATE.currentPage = pageId;
+  // Scroll to top on mobile
+  window.scrollTo({top:0, behavior:'smooth'});
   renderPage(pageId);
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
@@ -1630,7 +1763,7 @@ function renderEncaissement(el) {
   <div class="page-header"><div class="page-title">Caisse — Encaissement</div><div class="page-sub">Enregistrement rapide · Reçu automatique · Données en temps réel</div></div>
   <div id="enc-day-stats" class="stat-grid" style="margin-bottom:16px"></div>
 
-  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px">
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px" class="enc-main-grid">
 
   <!-- ═══ PANNEAU GAUCHE : FORMULAIRE ═══ -->
   <div class="form-card" style="padding:0;overflow:hidden">
