@@ -89,8 +89,10 @@ CREATE TABLE IF NOT EXISTS staff(id INTEGER PRIMARY KEY AUTOINCREMENT,username T
 `;
 
 function seed(dbw) {
+  try {
   if (!dbw.prepare('SELECT 1 FROM staff LIMIT 1').get()) {
-    const h0=bcrypt.hashSync('0000',10),hc=bcrypt.hashSync('2025',10);
+    // Rounds réduits à 8 pour démarrage plus rapide (toujours sécurisé)
+    const h0=bcrypt.hashSync('0000',8),hc=bcrypt.hashSync('2025',8);
     dbw.prepare('INSERT INTO staff(username,pin_hash,role,nom)VALUES(?,?,?,?)').run('directeur',h0,'directeur','Directeur GIE');
     dbw.prepare('INSERT INTO staff(username,pin_hash,role,nom)VALUES(?,?,?,?)').run('caissier',hc,'caissier','Caissier GIE');
     dbw.prepare('INSERT INTO staff(username,pin_hash,role,nom)VALUES(?,?,?,?)').run('president',h0,'president','Président GIE');
@@ -102,7 +104,8 @@ function seed(dbw) {
     saveDB(); console.log('✅ Produits créés');
   }
   if (!dbw.prepare('SELECT 1 FROM membres LIMIT 1').get()) {
-    const dp=bcrypt.hashSync('1234',10);
+    // Hash calculé UNE SEULE FOIS pour tous les 84 membres (PIN par défaut: 1234)
+    const dp=bcrypt.hashSync('1234',8);
     const ins=dbw.prepare('INSERT OR IGNORE INTO membres(id,prenom,nom,telephone,tel2,taxi,adhesion,statut,notes,pin_hash)VALUES(?,?,?,?,?,?,?,?,?,?)');
     [
     [1,'DAOUDA','NDIAYE','776351010','','','2024-09-01','actif',''],
@@ -211,6 +214,10 @@ function seed(dbw) {
   }
   saveDB();
   console.log('✅ Seed complet');
+  } catch(seedErr) {
+    console.error('❌ Erreur seed:', seedErr.message);
+    console.error(seedErr.stack);
+  }
 }
 
 let dbWrapper = null;

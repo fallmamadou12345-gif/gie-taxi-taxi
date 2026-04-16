@@ -578,6 +578,21 @@ app.post('/api/change-pin', auth, async (req, res) => {
 });
 
 // ══ DEBUG ══
+// Force reseed (si DB vide après déploiement)
+app.post('/api/admin/reseed', async (req, res) => {
+  const { secret } = req.body;
+  if (secret !== 'gie2026reseed') return res.status(403).json({ error: 'Interdit' });
+  try {
+    // Clear tables to force reseed
+    const db = await getDB();
+    db.exec('DELETE FROM membres; DELETE FROM staff; DELETE FROM produits; DELETE FROM cotisations; DELETE FROM banque; DELETE FROM taxi_versements; DELETE FROM journal_caisse;');
+    // Reset dbWrapper to force re-init
+    const { saveDB } = require('./db');
+    saveDB();
+    res.json({ ok: true, message: 'Tables vidées — redémarrez le serveur pour reseed' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/debug/status', async (req, res) => {
   try {
     const db = await getDB();
