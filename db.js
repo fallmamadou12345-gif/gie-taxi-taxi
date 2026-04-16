@@ -238,4 +238,4 @@ async function getDB() {
   return dbWrapper;
 }
 
-module.exports = { getDB, saveDB };
+module.exports = { getDB, saveDB, forceSeed };

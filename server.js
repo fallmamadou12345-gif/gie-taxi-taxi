@@ -583,13 +583,18 @@ app.post('/api/admin/reseed', async (req, res) => {
   const { secret } = req.body;
   if (secret !== 'gie2026reseed') return res.status(403).json({ error: 'Interdit' });
   try {
-    // Clear tables to force reseed
     const db = await getDB();
-    db.exec('DELETE FROM membres; DELETE FROM staff; DELETE FROM produits; DELETE FROM cotisations; DELETE FROM banque; DELETE FROM taxi_versements; DELETE FROM journal_caisse;');
-    // Reset dbWrapper to force re-init
-    const { saveDB } = require('./db');
-    saveDB();
-    res.json({ ok: true, message: 'Tables vidées — redémarrez le serveur pour reseed' });
+    // Vider les tables
+    db.exec('DELETE FROM membres');
+    db.exec('DELETE FROM staff');
+    db.exec('DELETE FROM produits');
+    // Appeler forceSeed via le module db
+    const dbModule = require('./db');
+    await dbModule.getDB(); // will call forceSeed automatically
+    const n = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
+    const s = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
+    const p = db.prepare('SELECT COUNT(*) as n FROM produits').get().n;
+    res.json({ ok: true, membres: n, staff: s, produits: p });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
