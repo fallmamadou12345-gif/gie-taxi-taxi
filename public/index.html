@@ -3453,27 +3453,35 @@ async function gopLoad(type) {
 
   try {
     if(type === 'cotisations') {
-      const data = await GET('/api/cotisations?limit=100');
+      const data = await GET('/api/cotisations?limit=500');
       el.innerHTML = `
         <div class="table-card">
-          <div class="table-top">
-            <div class="table-title">Cotisations — ${data.length} enregistrements</div>
-            <input class="search-inp" id="gop-search" placeholder="Rechercher..." oninput="gopFilter(this.value)" style="width:200px">
+          <div class="table-top" style="flex-wrap:wrap;gap:8px">
+            <div class="table-title">Cotisations — <span id="gop-count">${data.length}</span> enregistrements</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <input class="search-inp" id="gop-search" placeholder="Rechercher..." oninput="gopFilter(this.value)" style="width:160px">
+              <button class="btn btn-danger btn-sm" id="gop-del-sel" onclick="gopDelSelected('cotisations')" style="display:none">🗑️ Supprimer sélection (<span id="gop-sel-count">0</span>)</button>
+              <button class="btn btn-ghost btn-sm" onclick="gopToggleAll()">☑️ Tout sélect.</button>
+            </div>
           </div>
           <div class="table-responsive">
-          <table><thead><tr><th>ID</th><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Date</th><th>Saisi par</th><th>Actions</th></tr></thead>
+          <table><thead><tr>
+            <th style="width:30px"><input type="checkbox" id="gop-chk-all" onchange="gopCheckAll(this.checked)"></th>
+            <th>ID</th><th>Membre</th><th>Mois</th><th>Montant</th><th>Mode</th><th>Date</th><th>Par</th><th>Actions</th>
+          </tr></thead>
           <tbody id="gop-tbody">
           ${data.map(c=>`<tr id="gop-row-${c.id}">
-            <td style="color:var(--color-text-secondary)">#${c.id}</td>
+            <td><input type="checkbox" class="gop-chk" value="${c.id}" onchange="gopUpdateSel()"></td>
+            <td style="color:var(--color-text-secondary);font-size:9px">#${c.id}</td>
             <td><b>${c.prenom||''} ${c.nom||''}</b></td>
             <td><span class="badge b-b">${c.mois}</span></td>
-            <td style="color:var(--taxi-vert-clair,#2ECC71);font-weight:700">${Number(c.montant).toLocaleString('fr-FR')} F</td>
-            <td>${c.mode}</td>
-            <td style="color:var(--color-text-secondary)">${c.date}</td>
+            <td style="color:#27AE60;font-weight:700">${Number(c.montant).toLocaleString('fr-FR')} F</td>
+            <td style="font-size:10px">${c.mode}</td>
+            <td style="color:var(--color-text-secondary);font-size:10px">${c.date}</td>
             <td style="font-size:9px;color:var(--color-text-secondary)">${c.saisi_par||'—'}</td>
             <td style="display:flex;gap:4px">
               <button class="btn btn-ghost btn-sm" onclick="gopEdit('cotisation',${c.id},${JSON.stringify({mois:c.mois,montant:c.montant,mode:c.mode,date:c.date}).replace(/"/g,'&quot;')})">✏️</button>
-              <button class="btn btn-danger btn-sm" onclick="gopDel('cotisations',${c.id},'cotisation de ${c.prenom||''} ${c.nom||''} — ${c.mois}')">🗑️</button>
+              <button class="btn btn-danger btn-sm" onclick="gopDel('cotisations',${c.id},'${(c.prenom||'')+' '+(c.nom||'')} — ${c.mois}')">🗑️</button>
             </td>
           </tr>`).join('')}
           </tbody></table>
@@ -3771,6 +3779,193 @@ function gopFilter(q) {
     row.style.display = row.textContent.toLowerCase().includes(ql) ? '' : 'none';
   });
 }
+
+// ── MULTI-SELECT & IMPORT ──
+
+function gopCheckAll(checked) {
+  document.querySelectorAll('.gop-chk').forEach(c => c.checked = checked);
+  gopUpdateSel();
+}
+
+function gopToggleAll() {
+  const chks = document.querySelectorAll('.gop-chk');
+  const allChecked = [...chks].every(c => c.checked);
+  chks.forEach(c => c.checked = !allChecked);
+  gopUpdateSel();
+}
+
+function gopUpdateSel() {
+  const selected = [...document.querySelectorAll('.gop-chk:checked')];
+  const btn = document.getElementById('gop-del-sel');
+  const cnt = document.getElementById('gop-sel-count');
+  const allChk = document.getElementById('gop-chk-all');
+  if (btn) btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+  if (cnt) cnt.textContent = selected.length;
+  if (allChk) allChk.indeterminate = selected.length > 0 && selected.length < document.querySelectorAll('.gop-chk').length;
+}
+
+async function gopDelSelected(endpoint) {
+  const ids = [...document.querySelectorAll('.gop-chk:checked')].map(c => parseInt(c.value));
+  if (!ids.length) return;
+  if (!confirm(`Supprimer ${ids.length} enregistrement(s) sélectionné(s) ?\n\nCette action est irréversible.`)) return;
+  
+  let ok = 0, err = 0;
+  for (const id of ids) {
+    try {
+      await api('DELETE', '/api/'+endpoint+'/'+id);
+      ok++;
+      const row = document.getElementById('gop-row-'+id);
+      if (row) row.remove();
+    } catch(e) { err++; }
+  }
+  
+  toast(`🗑️ ${ok} supprimé(s)${err > 0 ? ' · '+err+' erreur(s)' : ''}`);
+  await loadAll();
+  // Update count
+  const tbody = document.getElementById('gop-tbody');
+  const cnt = document.getElementById('gop-count');
+  if (cnt && tbody) cnt.textContent = tbody.querySelectorAll('tr').length;
+  const btn = document.getElementById('gop-del-sel');
+  if (btn) btn.style.display = 'none';
+}
+
+function gopFilter(q) {
+  const ql = q.toLowerCase();
+  let visible = 0;
+  document.querySelectorAll('#gop-tbody tr').forEach(row => {
+    const show = row.textContent.toLowerCase().includes(ql);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const cnt = document.getElementById('gop-count');
+  if (cnt) cnt.textContent = visible;
+}
+
+// ── IMPORT DONNÉES ──
+function openImport() {
+  document.getElementById('modal-generic-body').innerHTML = `
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or);margin-bottom:6px">📥 Importer des données</div>
+    <div style="font-size:11px;color:var(--tx2);margin-bottom:16px">Importez vos données depuis un fichier Excel (.xlsx) ou CSV</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div onclick="document.getElementById('imp-file').click()" style="background:rgba(245,166,35,.06);border:2px dashed rgba(245,166,35,.3);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--taxi-or)'" onmouseout="this.style.borderColor='rgba(245,166,35,.3)'">
+        <div style="font-size:32px;margin-bottom:8px">📊</div>
+        <div style="font-weight:600;font-size:13px">Fichier Excel / CSV</div>
+        <div style="font-size:10px;color:var(--tx2);margin-top:4px">.xlsx, .csv</div>
+      </div>
+      <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:600;color:#3B82F6;margin-bottom:8px">Format attendu :</div>
+        <div style="font-size:10px;color:var(--tx2);line-height:1.8">
+          <b>Membres :</b> N°, Prénom, Nom, Téléphone<br>
+          <b>Cotisations :</b> N° Membre, Mois, Montant<br>
+          <b>Banque :</b> Date, Désignation, Entrée, Sortie
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="imp-file" accept=".xlsx,.csv,.xls" style="display:none" onchange="handleImport(this)">
+    
+    <div id="imp-preview" style="display:none;margin-bottom:14px"></div>
+    
+    <div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.15);border-radius:8px;padding:12px;font-size:11px;color:var(--tx2)">
+      💡 <b>Astuce :</b> Téléchargez d'abord un export CSV depuis l'app pour voir le format exact.
+      <button onclick="exportCSV()" class="btn btn-ghost btn-sm" style="margin-left:8px;font-size:10px">📤 Exporter CSV membres</button>
+    </div>
+    
+    <div class="btn-row" style="margin-top:14px">
+      <button id="imp-btn" class="btn btn-primary" onclick="doImport()" style="display:none">✅ IMPORTER</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Fermer</button>
+    </div>`;
+  document.getElementById('modal-generic').classList.add('show');
+}
+
+let _importData = null;
+
+async function handleImport(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const preview = document.getElementById('imp-preview');
+  
+  if (file.name.endsWith('.csv')) {
+    const text = await file.text();
+    const rows = text.split('\n').filter(r => r.trim()).map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
+    _importData = { type: 'csv', rows, filename: file.name };
+    preview.style.display = 'block';
+    preview.innerHTML = `<div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px;font-size:11px">
+      <b>Aperçu — ${file.name}</b> (${rows.length} lignes)<br>
+      <div style="overflow-x:auto;margin-top:8px"><table style="font-size:9px;border-collapse:collapse">
+        ${rows.slice(0,5).map(r=>`<tr>${r.map(c=>`<td style="padding:3px 8px;border:1px solid rgba(255,255,255,.1)">${c}</td>`).join('')}</tr>`).join('')}
+      </table></div>
+    </div>`;
+    document.getElementById('imp-btn').style.display = 'inline-flex';
+  } else {
+    preview.style.display = 'block';
+    preview.innerHTML = `<div style="color:#F5A623;padding:10px;text-align:center">⚠️ Pour les fichiers Excel (.xlsx), exportez d'abord en CSV depuis Excel puis importez le CSV.</div>`;
+  }
+}
+
+async function doImport() {
+  if (!_importData) return;
+  const { rows } = _importData;
+  if (!rows || rows.length < 2) { toast('⚠️ Fichier vide ou invalide', 'w'); return; }
+  
+  // Detect type from headers
+  const headers = rows[0].map(h => h.toLowerCase());
+  let imported = 0;
+  
+  if (headers.includes('prénom') || headers.includes('prenom') || headers.includes('nom')) {
+    // Import membres
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 3) continue;
+      try {
+        await POST('/api/membres', {
+          prenom: r[1] || r[0], nom: r[2] || r[1],
+          telephone: r[3] || r[4] || '', tel2: r[4] || '',
+          statut: 'actif'
+        });
+        imported++;
+      } catch(e) {}
+    }
+    toast(`✅ ${imported} membres importés`);
+  } else if (headers.includes('mois') || headers.includes('cotisation')) {
+    // Import cotisations
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 3) continue;
+      try {
+        await POST('/api/cotisations', {
+          membre_id: parseInt(r[0]), mois: r[1],
+          montant: parseInt(r[2]) || 2000,
+          mode: r[3] || 'Espèces',
+          date: r[4] || today()
+        });
+        imported++;
+      } catch(e) {}
+    }
+    toast(`✅ ${imported} cotisations importées`);
+  } else {
+    toast('⚠️ Format non reconnu — vérifiez les entêtes', 'w');
+    return;
+  }
+  
+  await loadAll();
+  closeModal('modal-generic');
+}
+
+function exportCSV() {
+  const headers = ['N°','Prénom','Nom','Téléphone','Téléphone2','Cotisé 2026','Mois payés','Statut'];
+  const rows = STATE.membres.map(m => [m.id, m.prenom, m.nom, m.telephone, m.tel2||'', m.total_2026||0, m.mois_payes||0, m.statut]);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'membres_gie_'+today()+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ Export CSV téléchargé');
+}
+
 
 // ╔══════════════════════════════════════════════════════╗
 // ║              PARAMÈTRES & GESTION ACCÈS              ║
