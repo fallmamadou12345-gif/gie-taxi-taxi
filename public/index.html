@@ -1215,7 +1215,7 @@ function PATCH(p, b) { return api('PATCH', p, b); }
 // FORMAT
 // ═══════════════════════════════════════
 const f = n => n != null ? Number(n).toLocaleString('fr-FR') + ' F' : '—';
-const fk = n => n >= 1000000 ? (n/1000000).toFixed(1)+'M F' : n >= 1000 ? (n/1000).toFixed(0)+'K F' : f(n);
+const fk = n => n != null ? Number(n).toLocaleString('fr-FR') + ' F' : '—';
 const today = () => new Date().toISOString().split('T')[0];
 let recuCounter = 100;
 const genRef = () => 'R-' + String(++recuCounter).padStart(4,'0');
