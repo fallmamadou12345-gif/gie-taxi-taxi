@@ -1056,6 +1056,10 @@ select.form-input option { background: var(--bg2); }
           <span style="font-size:18px">👑</span>
           <span>Président</span>
         </button>
+        <button class="lrole-btn" id="lr-controleur" onclick="setRole('controleur')">
+          <span style="font-size:18px">🔍</span>
+          <span>Contrôleur</span>
+        </button>
       </div>
 
       <label class="lbl" style="margin-top:16px">Mot de passe (PIN)</label>
@@ -1343,18 +1347,20 @@ async function startApp() {
   const nomAffiche = USER.nom || '';
   document.getElementById('u-name').textContent = nomAffiche;
   // Mettre à jour le titre de l'onglet
-  const roleLabel = {membre:'Membre',caissier:'Caissier',directeur:'Directeur GIE',president:'Président GIE'}[USER.role]||USER.role;
+  const roleLabel = {membre:'Membre',caissier:'Caissier',directeur:'Directeur GIE',president:'Président GIE',controleur:'Contrôleur GIE'}[USER.role]||USER.role;
   document.title = nomAffiche ? `${nomAffiche} · GIE TAXI TAXI` : 'GIE TAXI TAXI · Sénégal 2026';
   const roleClass = {membre:'ud-m',caissier:'ud-c',directeur:'ud-d',president:'ud-p'}[USER.role]||'ud-m';
   document.getElementById('u-dot').className = 'user-dot ' + roleClass;
   const roleEl = document.getElementById('u-role');
-  if (roleEl) roleEl.textContent = {membre:'Membre',caissier:'Caissier',directeur:'Directeur',president:'Président'}[USER.role]||USER.role;
+  if (roleEl) roleEl.textContent = {membre:'Membre',caissier:'Caissier',directeur:'Directeur',president:'Président',controleur:'Contrôleur'}[USER.role]||USER.role;
   // Nav visibility (sidebar)
   const isStaff = USER.role !== 'membre';
   const isDir = ['directeur','president'].includes(USER.role);
+  const isCtrl = USER.role === 'controleur';
   document.querySelectorAll('.staff-only').forEach(el=>el.style.display=(isStaff?'':'none'));
   document.querySelectorAll('.dir-only').forEach(el=>el.style.display=(isDir?'':'none'));
   document.querySelectorAll('.membre-only').forEach(el=>el.style.display=(isStaff?'none':''));
+  document.querySelectorAll('.ctrl-only').forEach(el=>el.style.display=(isCtrl||isDir?'':'none'));
   // Build bottom nav dynamiquement selon le rôle
   buildBottomNav(USER.role);
   // Load data
@@ -1369,10 +1375,17 @@ function buildBottomNav(role) {
   const isDir = ['directeur','president'].includes(role);
 
   // Définir les items selon le rôle
+  const isCtrl = role === 'controleur';
   const items = isDir ? [
     {page:'dashboard', icon:'📊', lbl:'Accueil'},
     {page:'encaissement', icon:'💵', lbl:'Caisse'},
     {page:'saisie-cot', icon:'✍️', lbl:'Cotis.'},
+    {page:'membres', icon:'👥', lbl:'Membres'},
+    {page:'journal', icon:'🧾', lbl:'Journal'},
+  ] : isCtrl ? [
+    {page:'dashboard', icon:'📊', lbl:'Accueil'},
+    {page:'credits', icon:'🔋', lbl:'Crédits'},
+    {page:'encaissement', icon:'💵', lbl:'Versement'},
     {page:'membres', icon:'👥', lbl:'Membres'},
     {page:'journal', icon:'🧾', lbl:'Journal'},
   ] : isStaff ? [
@@ -2764,7 +2777,7 @@ function renderNouvelleVente(el){
       <div class="form-group"><label>Date</label><input class="form-input" id="vf-date" type="date" value="${today()}"></div>
       <div class="form-group"><label>Autorisé par</label>
         <select class="form-input" id="vf-auth">
-          <option>Caissier</option><option>Directeur</option><option>Président</option>
+          <option>Caissier</option><option>Directeur</option><option>Président</option><option>Contrôleur</option>
         </select></div>
     </div>
 

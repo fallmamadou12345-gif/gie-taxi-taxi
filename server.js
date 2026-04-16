@@ -77,6 +77,8 @@ app.get('/api/events', auth, (req, res) => {
 });
 function staffOnly(req, res, next) { auth(req, res, () => { if (req.user.role === 'membre') return res.status(403).json({ error: 'Accès refusé' }); next(); }); }
 function dirOnly(req, res, next) { auth(req, res, () => { if (!['directeur','president'].includes(req.user.role)) return res.status(403).json({ error: 'Réservé directeur' }); next(); }); }
+// Contrôleur : accès crédits + versements + lecture seule
+function ctrlOnly(req, res, next) { auth(req, res, () => { if (!['directeur','president','controleur'].includes(req.user.role)) return res.status(403).json({ error: 'Réservé contrôleur+' }); next(); }); }
 
 const today = () => new Date().toISOString().split('T')[0];
 function genRef(db) {
@@ -286,7 +288,7 @@ app.post('/api/credits', staffOnly, async (req, res) => {
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 
-app.post('/api/credits/:id/versement', staffOnly, async (req, res) => {
+app.post('/api/credits/:id/versement', ctrlOnly, async (req, res) => {
   try {
     const db=await getDB();
     const c=db.prepare('SELECT * FROM credits WHERE id=?').get(req.params.id);
