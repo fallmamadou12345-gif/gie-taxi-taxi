@@ -239,7 +239,9 @@ async function getDB() {
 }
 
 async function forceSeed() {
-  const dbw = await getDB();
+  // Use existing dbWrapper directly to avoid circular call
+  if (!dbWrapper) await getDB();
+  const dbw = dbWrapper;
   const bcrypt = require('bcryptjs');
   const h0=bcrypt.hashSync('0000',8), hc=bcrypt.hashSync('2025',8), dp=bcrypt.hashSync('1234',8);
   console.log('🔄 forceSeed...');

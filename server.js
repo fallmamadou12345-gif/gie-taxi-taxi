@@ -583,34 +583,25 @@ app.post('/api/admin/reseed', async (req, res) => {
   const { secret } = req.body;
   if (secret !== 'gie2026reseed') return res.status(403).json({ error: 'Interdit' });
   try {
-    const db = await getDB();
-    // Vider les tables
-    db.exec('DELETE FROM membres');
-    db.exec('DELETE FROM staff');
-    db.exec('DELETE FROM produits');
-    // Appeler forceSeed via le module db
-    const dbModule = require('./db');
-    await dbModule.getDB(); // will call forceSeed automatically
-    const n = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
-    const s = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
-    const p = db.prepare('SELECT COUNT(*) as n FROM produits').get().n;
-    res.json({ ok: true, membres: n, staff: s, produits: p });
+    const { forceSeed } = require('./db');
+    const result = await forceSeed();
+    res.json({ ok: true, ...result });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/debug/status', async (req, res) => {
   try {
-    const db = await getDB();
+    // Force fresh DB instance check
+    const dbModule = require('./db');
+    const db = await dbModule.getDB();
     const membres = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
     const staff = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
     const produits = db.prepare('SELECT COUNT(*) as n FROM produits').get().n;
     const cotisations = db.prepare('SELECT COUNT(*) as n FROM cotisations').get().n;
-    const { DB_PATH } = require('./db');
     const fs = require('fs');
-    const size = fs.existsSync(process.env.DB_PATH || './data/gie.db') 
-      ? (fs.statSync(process.env.DB_PATH || './data/gie.db').size/1024).toFixed(1) + ' KB'
-      : 'N/A';
-    res.json({ ok: true, membres, staff, produits, cotisations, db_size: size });
+    const dbPath = process.env.DB_PATH || '/data/gie.db';
+    const size = fs.existsSync(dbPath) ? (fs.statSync(dbPath).size/1024).toFixed(1) + ' KB' : 'N/A';
+    res.json({ ok: true, membres, staff, produits, cotisations, db_size: size, db_path: dbPath });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
