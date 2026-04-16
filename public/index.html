@@ -1103,7 +1103,7 @@ select.form-input option { background: var(--bg2); }
     <div class="topnav-user">
       <div class="user-badge">
         <div class="user-dot" id="u-dot"></div>
-        <span id="u-name" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px"></span>
+        <span id="u-name" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;text-transform:uppercase;letter-spacing:.3px"></span>
       </div>
       <button class="logout-btn" onclick="doLogout()">Quitter</button>
     </div>
@@ -1339,9 +1339,16 @@ async function startApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   // User display
-  document.getElementById('u-name').textContent = USER.nom;
+  // Afficher Prénom NOM dans la barre du haut
+  const nomAffiche = USER.nom || '';
+  document.getElementById('u-name').textContent = nomAffiche;
+  // Mettre à jour le titre de l'onglet
+  const roleLabel = {membre:'Membre',caissier:'Caissier',directeur:'Directeur GIE',president:'Président GIE'}[USER.role]||USER.role;
+  document.title = nomAffiche ? `${nomAffiche} · GIE TAXI TAXI` : 'GIE TAXI TAXI · Sénégal 2026';
   const roleClass = {membre:'ud-m',caissier:'ud-c',directeur:'ud-d',president:'ud-p'}[USER.role]||'ud-m';
   document.getElementById('u-dot').className = 'user-dot ' + roleClass;
+  const roleEl = document.getElementById('u-role');
+  if (roleEl) roleEl.textContent = {membre:'Membre',caissier:'Caissier',directeur:'Directeur',president:'Président'}[USER.role]||USER.role;
   // Nav visibility (sidebar)
   const isStaff = USER.role !== 'membre';
   const isDir = ['directeur','president'].includes(USER.role);
@@ -1493,7 +1500,7 @@ async function renderDashboard(el) {
   const greet = now.getHours()<12?'Bonjour':'Bonsoir';
   el.innerHTML = `
   <div class="welcome-banner">
-    <div class="welcome-greeting">${greet}, ${USER.nom.split(' ')[0]} 👋</div>
+    <div class="welcome-greeting">${greet}, ${USER.nom.split(' ').map(w=>w.charAt(0)+w.slice(1).toLowerCase()).join(' ')} 👋</div>
     <div class="welcome-sub">${now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
     <div class="welcome-icon">🚖</div>
     <div class="welcome-stripe"></div>
