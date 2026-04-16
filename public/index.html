@@ -1705,15 +1705,31 @@ function renderEncaissement(el) {
       <!-- ── SECTION : COTISATION ── -->
       <div id="esec-cotisation" style="display:none">
         <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">💳 Membre qui paie sa cotisation</div>
+
+        <!-- Recherche membre -->
         <div class="form-group ac-wrap" style="position:relative;margin-bottom:10px">
           <input class="form-input" id="enc-cot-input" placeholder="🔍 Taper nom ou téléphone du membre..." oninput="acMembreEnc(this.value)" autocomplete="off" style="font-size:14px;padding:12px 14px">
           <div class="ac-list" id="enc-cot-ac"></div>
           <input type="hidden" id="enc-cot-id">
         </div>
-        <div id="enc-cot-info" style="display:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px"></div>
-        <div class="form-group" style="margin-bottom:10px">
-          <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Mois de cotisation</label>
-          <select class="form-input" id="enc-cot-mois">${MONTHS.map(m=>`<option>${m}</option>`).join('')}</select>
+
+        <!-- Situation membre + arriérés (affiché après sélection) -->
+        <div id="enc-cot-situation" style="display:none;margin-bottom:10px;border-radius:8px;overflow:hidden;border:1px solid rgba(245,166,35,.2)">
+          <div style="background:rgba(245,166,35,.06);padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div id="enc-sit-nom" style="font-weight:700;font-size:13px"></div>
+              <div id="enc-sit-detail" style="font-size:10px;color:var(--tx2);margin-top:2px"></div>
+            </div>
+            <div id="enc-sit-badge"></div>
+          </div>
+          <div id="enc-arriere-box" style="display:none;padding:8px 12px;background:rgba(231,76,60,.05);border-top:1px solid rgba(231,76,60,.12)">
+            <div style="font-size:10px;font-weight:600;color:#E74C3C;margin-bottom:6px">⚠️ Mois non payés</div>
+            <div id="enc-arriere-list" style="font-size:10px;line-height:1.8"></div>
+          </div>
+          <div id="enc-rep-box" style="display:none;padding:8px 12px;background:rgba(39,174,96,.05);border-top:1px solid rgba(39,174,96,.12)">
+            <div style="font-size:10px;font-weight:600;color:#27AE60;margin-bottom:4px">✅ Répartition automatique</div>
+            <div id="enc-rep-list" style="font-size:10px"></div>
+          </div>
         </div>
       </div>
 
@@ -1779,7 +1795,7 @@ function renderEncaissement(el) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div class="form-group">
             <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Montant (FCFA)</label>
-            <input class="form-input" id="enc-montant" type="number" placeholder="10 000" min="0" oninput="updateEncCalc()" style="font-size:16px;font-weight:700;padding:12px 14px">
+            <input class="form-input" id="enc-montant" type="number" placeholder="10 000" min="0" oninput="updateEncCalc();encCalcRepartition();" style="font-size:16px;font-weight:700;padding:12px 14px">
           </div>
           <div class="form-group">
             <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Mode de paiement</label>
@@ -1888,19 +1904,88 @@ function acMembreEnc(q){
   ac.classList.add('show');
 }
 
-function selMembreEnc(id, name, total, mois, retard){
+function selMembreEnc(id, name, total, moisPaies, retard){
   document.getElementById('enc-cot-input').value = name;
   document.getElementById('enc-cot-id').value = id;
   document.getElementById('enc-cot-ac').classList.remove('show');
-  // Show member info
-  const info = document.getElementById('enc-cot-info');
-  if(info){
-    info.style.display='block';
-    info.innerHTML=`<b>${name}</b> · 💳 ${mois}/12 mois payés · ${retard===0?'✅ À jour':'⚠️ '+retard+' mois retard'} · Total 2026: <b>${Number(total).toLocaleString('fr-FR')} F</b>`;
-    info.style.color=retard>3?'#E74C3C':'#3B82F6';
+
+  const m = STATE.membres.find(x => x.id == id);
+  if (!m) return;
+
+  // Afficher situation
+  document.getElementById('enc-cot-situation').style.display = 'block';
+  document.getElementById('enc-sit-nom').textContent = name;
+  document.getElementById('enc-sit-detail').textContent =
+    `${moisPaies}/12 mois payés · Total: ${Number(total||0).toLocaleString('fr-FR')} F`;
+
+  const badge = document.getElementById('enc-sit-badge');
+  badge.innerHTML = retard === 0
+    ? '<span class="badge b-v" style="font-size:10px;padding:4px 8px">✅ À JOUR</span>'
+    : `<span class="badge b-r" style="font-size:10px;padding:4px 8px">⚠️ ${retard} mois retard</span>`;
+
+  // Calculer mois non payés
+  const moisPayes = Object.keys(m.cotisations_2026 || {});
+  const nonPayes = MONTHS.filter(mo => !moisPayes.includes(mo));
+
+  if (nonPayes.length > 0) {
+    document.getElementById('enc-arriere-box').style.display = 'block';
+    document.getElementById('enc-arriere-list').innerHTML =
+      nonPayes.map(mo => `<span style="display:inline-block;background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.25);border-radius:4px;padding:1px 7px;margin:2px;color:#E74C3C">${mo}</span>`).join('');
+  } else {
+    document.getElementById('enc-arriere-box').style.display = 'none';
   }
-  // Auto-fill amount for cotisation
-  document.getElementById('enc-montant').value = 2000;
+
+  // Calculer montant suggéré
+  const jour = parseInt(today().split('-')[2]);
+  const apres15 = jour > 15;
+  const tarifMoisCourant = apres15 ? 2500 : 2000;
+  const mntSuggere = nonPayes.length === 0 ? tarifMoisCourant
+    : nonPayes.length === 1 ? tarifMoisCourant
+    : nonPayes.length * 2000 + (apres15 ? 500 : 0);
+
+  document.getElementById('enc-montant').value = Math.min(mntSuggere, nonPayes.length * 2500 || tarifMoisCourant);
+  encCalcRepartition();
+}
+
+function encCalcRepartition() {
+  const mid = document.getElementById('enc-cot-id')?.value;
+  if (!mid || ENC_TYPE !== 'cotisation') return;
+  const m = STATE.membres.find(x => x.id == mid);
+  if (!m) return;
+  const montant = parseInt(document.getElementById('enc-montant').value) || 0;
+  if (!montant) { document.getElementById('enc-rep-box').style.display='none'; return; }
+
+  const jour = parseInt(today().split('-')[2]);
+  const apres15 = jour > 15;
+  const moisPayes = Object.keys(m.cotisations_2026 || {});
+  const nonPayes = MONTHS.filter(mo => !moisPayes.includes(mo));
+
+  if (!nonPayes.length) {
+    // Tout payé - affiche juste le mois courant
+    document.getElementById('enc-rep-box').style.display='none';
+    return;
+  }
+
+  let reste = montant;
+  const rep = [];
+  for (let i = 0; i < nonPayes.length && reste > 0; i++) {
+    const mo = nonPayes[i];
+    const isLast = i === nonPayes.length - 1;
+    const tarif = (isLast && apres15) ? 2500 : 2000;
+    const paye = Math.min(tarif, reste);
+    rep.push({mois: mo, montant: paye, tarif, complet: paye >= tarif});
+    reste -= paye;
+  }
+
+  const box = document.getElementById('enc-rep-box');
+  const list = document.getElementById('enc-rep-list');
+  box.style.display = 'block';
+  list.innerHTML = rep.map(r =>
+    `<div style="display:flex;justify-content:space-between;padding:2px 0">
+      <span style="color:var(--tx2)">${r.mois}${r.tarif===2500?' <small style="color:#F5A623">(+500 après le 15)</small>':''}</span>
+      <span style="font-weight:700;color:${r.complet?'#27AE60':'#F5A623'}">${f(r.montant)}${r.complet?' ✅':' ⚠️'}</span>
+    </div>`
+  ).join('') + (reste > 0 ? `<div style="margin-top:4px;color:#F5A623;font-size:9px">Excédent ${f(reste)} → prochain mois non couvert</div>` : '');
 }
 
 async function doEncaissement(){
@@ -1931,13 +2016,31 @@ async function doEncaissement(){
 
     } else if(ENC_TYPE==='cotisation'){
       const mid=document.getElementById('enc-cot-id').value;
-      const mois=document.getElementById('enc-cot-mois').value;
-      if(!mid){toast('⚠️ Sélectionner un membre','w');return;}
-      result=await POST('/api/cotisations',{membre_id:mid,mois,montant,mode,date,note});
-      ref=result.ref;
+      if(!mid){toast('⚠️ Sélectionner un membre dans la liste','w');return;}
       const mName=document.getElementById('enc-cot-input').value;
-      entry={ref,date,client:mName,type:'COTISATION',designation:`Cotisation ${mois} — ${mName}`,mode,montant,note};
-      toast('✅ Cotisation '+mois+' · '+mName+' · '+f(montant));
+      const mObj=STATE.membres.find(x=>x.id==mid);
+      const jour=parseInt(date.split('-')[2]); const apres15=jour>15;
+      const moisPayes=Object.keys(mObj?.cotisations_2026||{});
+      let nonPayes=MONTHS.filter(mo=>!moisPayes.includes(mo));
+      // Si tout payé, saisir le mois courant
+      if(!nonPayes.length){ const mi=new Date().getMonth(); nonPayes=[MONTHS[mi]||MONTHS[0]]; }
+      let reste=montant; const saisies=[];
+      for(let i=0;i<nonPayes.length&&reste>0;i++){
+        const mo=nonPayes[i]; const isLast=i===nonPayes.length-1;
+        const tarif=(isLast&&apres15)?2500:2000;
+        const paye=Math.min(tarif,reste);
+        saisies.push({mois:mo,montant:paye}); reste-=paye;
+      }
+      let lastRef='';
+      for(const s of saisies){
+        const r=await POST('/api/cotisations',{membre_id:mid,mois:s.mois,montant:s.montant,mode,date,note});
+        lastRef=r.ref;
+      }
+      ref=lastRef;
+      const moisStr=saisies.map(s=>s.mois).join(', ');
+      const totalPaye=saisies.reduce((acc,s)=>acc+s.montant,0);
+      entry={ref,date,client:mName,type:'COTISATION',designation:`Cotisation ${moisStr} — ${mName}`,mode,montant:totalPaye,note};
+      toast(`✅ ${mName} · ${f(totalPaye)} · ${moisStr}`);
 
     } else if(ENC_TYPE==='banque'){
       const banque=document.getElementById('enc-bank').value;
@@ -1990,6 +2093,8 @@ function resetEnc(){
   const box=document.getElementById('enc-credit-box');if(box)box.style.display='none';
   const calc=document.getElementById('enc-calc');if(calc)calc.style.display='none';
   const cotInfo=document.getElementById('enc-cot-info');if(cotInfo)cotInfo.style.display='none';
+  const cotSit=document.getElementById('enc-cot-situation');if(cotSit)cotSit.style.display='none';
+  const repBox=document.getElementById('enc-rep-box');if(repBox)repBox.style.display='none';
 }
 
 function updateEncCalc(){
