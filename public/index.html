@@ -2967,46 +2967,163 @@ function exportCSV(){const csv='N°,Prénom,Nom,Téléphone,Cotisé 2026,Mois pa
 // GER PRODUITS
 function renderGerProduits(el){
   el.innerHTML=`
-  <div class="page-header"><div class="page-title">Gestion Produits</div><div class="page-sub">Catalogue · Stock · Prix</div></div>
-  <div class="btn-row" style="margin-bottom:14px"><button class="btn btn-primary" onclick="openAddProd()">+ Nouveau Produit</button></div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px" id="gp-grid"></div>`;
+  <div class="page-header"><div class="page-title">📦 Gestion Produits</div><div class="page-sub">Catalogue · Stock · Prix · Images</div></div>
+  <div class="btn-row" style="margin-bottom:16px">
+    <button class="btn btn-primary" onclick="openAddProd()">+ Nouveau Produit</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px" id="gp-grid"></div>`;
   renderGPGrid();
 }
+
 function renderGPGrid(){
-  const grid=document.getElementById('gp-grid');if(!grid)return;
-  grid.innerHTML=STATE.produits.map(p=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
-    <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:24px">${p.icon}</span><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm" onclick="editProd(${p.id})">✏️</button></div></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:4px">${p.nom}</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--taxi-or);margin-bottom:6px">${f(p.prix_vente)}</div>
-    <div style="font-size:9px;color:var(--tx2)">Achat: ${f(p.prix_achat)}</div>
-    <div style="font-size:9px;color:var(--tx2);margin-top:4px">Stock: <b style="color:${p.stock>2?'var(--taxi-vert-clair)':p.stock>0?'var(--taxi-or)':'var(--taxi-rouge-clair)'}">${p.stock}</b>
-      <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="adjStock(${p.id},-1)">-</button>
-      <button class="btn btn-success btn-sm" onclick="adjStock(${p.id},1)">+</button>
-    </div>
-  </div>`).join('');
+  const grid=document.getElementById('gp-grid'); if(!grid) return;
+  if(!STATE.produits.length){
+    grid.innerHTML='<div style="color:var(--tx2);padding:30px;text-align:center">Aucun produit</div>';return;
+  }
+  grid.innerHTML=STATE.produits.map(p=>{
+    const imgSrc = p.image_b64
+      ? `data:image/jpeg;base64,${p.image_b64}`
+      : p.image_url || null;
+    const stockColor = p.stock>2?'#27AE60':p.stock>0?'#F5A623':'#E74C3C';
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;position:relative">
+      <!-- Image ou icône -->
+      <div style="width:100%;height:130px;background:rgba(245,166,35,.04);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+        ${imgSrc
+          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover" loading="lazy">`
+          : `<span style="font-size:48px">${p.icon||'📦'}</span>`}
+        <!-- Badge stock -->
+        <div style="position:absolute;top:8px;right:8px;background:${stockColor};color:#fff;font-size:9px;font-weight:700;padding:3px 7px;border-radius:10px">
+          ${p.stock > 0 ? 'Stock: '+p.stock : 'Rupture'}
+        </div>
+      </div>
+      <!-- Infos -->
+      <div style="padding:12px">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nom}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or)">${f(p.prix_vente)}</span>
+          <span style="font-size:9px;color:var(--tx2)">Achat: ${f(p.prix_achat)}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <!-- Ajuster stock -->
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="adjStock(${p.id},-1)" style="width:26px;height:26px;border-radius:50%;background:rgba(231,76,60,.15);border:none;cursor:pointer;font-size:14px;color:#E74C3C;display:flex;align-items:center;justify-content:center;font-weight:700">-</button>
+            <span style="font-size:11px;font-weight:700;color:${stockColor};min-width:20px;text-align:center">${p.stock}</span>
+            <button onclick="adjStock(${p.id},1)" style="width:26px;height:26px;border-radius:50%;background:rgba(39,174,96,.15);border:none;cursor:pointer;font-size:14px;color:#27AE60;display:flex;align-items:center;justify-content:center;font-weight:700">+</button>
+          </div>
+          <!-- Actions -->
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" onclick="editProd(${p.id})" title="Modifier">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteProd(${p.id},'${p.nom.replace(/'/g,"\'")}')" title="Supprimer">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
-function openAddProd(){
+
+function openAddProd(editId) {
+  const isEdit = !!editId;
+  const p = isEdit ? STATE.produits.find(x=>x.id===editId) : null;
   document.getElementById('modal-generic-body').innerHTML=`
-  <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
-  <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or);margin-bottom:16px">+ Nouveau Produit</div>
-  <div class="form-grid">
-    <div class="form-group"><label>Nom</label><input class="form-input" id="np-nom" placeholder="Nom du produit"></div>
-    <div class="form-group"><label>Catégorie</label><select class="form-input" id="np-cat"><option>BATTERIE</option><option>TELEPHONE</option><option>ELECTROMENAGER</option><option>HUILE</option><option>ASSURANCE</option><option>AUTRE</option></select></div>
-    <div class="form-group"><label>Icône emoji</label><input class="form-input" id="np-icon" placeholder="🔋" maxlength="4"></div>
-    <div class="form-group"><label>Prix achat</label><input class="form-input" id="np-achat" type="number" placeholder="0"></div>
-    <div class="form-group"><label>Prix vente</label><input class="form-input" id="np-vente" type="number" placeholder="0"></div>
-    <div class="form-group"><label>Stock initial</label><input class="form-input" id="np-stock" type="number" value="0"></div>
-  </div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="saveProd()">ENREGISTRER</button><button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button></div>`;
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or);margin-bottom:16px">
+      ${isEdit?'✏️ Modifier : '+p.nom:'+ Nouveau Produit'}
+    </div>
+
+    <!-- Aperçu image -->
+    <div style="text-align:center;margin-bottom:14px">
+      <div id="prod-img-preview" style="width:100px;height:100px;margin:0 auto 10px;border-radius:10px;overflow:hidden;background:rgba(245,166,35,.08);border:2px dashed rgba(245,166,35,.3);display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="document.getElementById('prod-img-file').click()">
+        ${isEdit && (p.image_url||p.image_b64)
+          ? `<img src="${p.image_b64?'data:image/jpeg;base64,'+p.image_b64:p.image_url}" style="width:100%;height:100%;object-fit:cover">`
+          : `<div style="text-align:center"><div style="font-size:28px">${isEdit?p.icon||'📦':'📸'}</div><div style="font-size:9px;color:var(--tx2);margin-top:4px">Cliquer pour ajouter</div></div>`}
+      </div>
+      <input type="file" id="prod-img-file" accept="image/*" style="display:none" onchange="previewProdImg(this)">
+      <button onclick="document.getElementById('prod-img-file').click()" class="btn btn-ghost btn-sm">📷 ${isEdit?'Changer':'Ajouter'} une photo</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-group"><label>Nom du produit</label><input class="form-input" id="np-nom" value="${isEdit?p.nom:''}" placeholder="Ex: Batterie SOLANCE 12V"></div>
+      <div class="form-group"><label>Catégorie</label>
+        <select class="form-input" id="np-cat">
+          ${['BATTERIE','TELEPHONE','ELECTROMENAGER','HUILE','ASSURANCE','AUTRE'].map(c=>`<option${isEdit&&p.categorie===c?' selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Icône emoji (si pas de photo)</label><input class="form-input" id="np-icon" value="${isEdit?p.icon||'📦':'📦'}" maxlength="4" placeholder="🔋"></div>
+      <div class="form-group"><label>Prix d'achat (FCFA)</label><input class="form-input" id="np-achat" type="number" value="${isEdit?p.prix_achat:0}" min="0"></div>
+      <div class="form-group"><label>Prix de vente (FCFA)</label><input class="form-input" id="np-vente" type="number" value="${isEdit?p.prix_vente:0}" min="0"></div>
+      <div class="form-group"><label>Stock</label><input class="form-input" id="np-stock" type="number" value="${isEdit?p.stock:0}" min="0"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Description (optionnel)</label><input class="form-input" id="np-desc" value="${isEdit?p.description||'':''}" placeholder="Caractéristiques..."></div>
+    </div>
+    <input type="hidden" id="np-img-b64" value="">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveProd(${editId||''})">💾 ${isEdit?'MODIFIER':'CRÉER'}</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+    </div>`;
   document.getElementById('modal-generic').classList.add('show');
 }
-async function saveProd(){
-  const nom=document.getElementById('np-nom').value.trim();
-  const cat=document.getElementById('np-cat').value;
-  if(!nom){toast('⚠️ Nom requis','w');return;}
-  try{await POST('/api/produits',{nom,categorie:cat,icon:document.getElementById('np-icon').value||'📦',prix_achat:parseInt(document.getElementById('np-achat').value)||0,prix_vente:parseInt(document.getElementById('np-vente').value)||0,stock:parseInt(document.getElementById('np-stock').value)||0});toast('✅ Produit créé');closeModal('modal-generic');const p=await GET('/api/produits');STATE.produits=p;renderGPGrid();}catch(e){toast('❌ '+e.message,'e');}
+
+function previewProdImg(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 2 * 1024 * 1024) { toast('⚠️ Image max 2MB','w'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result.split(',')[1];
+    document.getElementById('np-img-b64').value = b64;
+    document.getElementById('prod-img-preview').innerHTML =
+      `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
 }
-async function adjStock(id,delta){try{const r=await PATCH('/api/produits/'+id+'/stock',{delta});const p=STATE.produits.find(x=>x.id===id);if(p)p.stock=r.stock;renderGPGrid();}catch(e){toast('❌ '+e.message,'e');}}
+
+async function saveProd(editId) {
+  const nom = document.getElementById('np-nom').value.trim();
+  const cat = document.getElementById('np-cat').value;
+  const icon = document.getElementById('np-icon').value || '📦';
+  const prix_achat = parseInt(document.getElementById('np-achat').value)||0;
+  const prix_vente = parseInt(document.getElementById('np-vente').value)||0;
+  const stock = parseInt(document.getElementById('np-stock').value)||0;
+  const description = document.getElementById('np-desc').value.trim();
+  const image_b64 = document.getElementById('np-img-b64').value;
+  if (!nom) { toast('⚠️ Nom requis','w'); return; }
+  const body = {nom, categorie:cat, icon, prix_achat, prix_vente, stock, description};
+  if (image_b64) body.image_b64 = image_b64;
+  try {
+    if (editId) {
+      await PUT('/api/produits/'+editId, body);
+      toast('✅ Produit modifié');
+    } else {
+      await POST('/api/produits', body);
+      toast('✅ Produit créé');
+    }
+    closeModal('modal-generic');
+    STATE.produits = await GET('/api/produits');
+    renderGPGrid();
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+function editProd(id) { openAddProd(id); }
+
+async function deleteProd(id, nom) {
+  if (!confirm(`Supprimer le produit "${nom}" ?
+
+Cette action est irréversible.`)) return;
+  try {
+    await api('DELETE', '/api/produits/'+id);
+    toast('🗑️ Produit supprimé');
+    STATE.produits = await GET('/api/produits');
+    renderGPGrid();
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
+
+async function adjStock(id,delta){
+  try {
+    const r=await PATCH('/api/produits/'+id+'/stock',{delta});
+    const p=STATE.produits.find(x=>x.id===id);
+    if(p) p.stock=r.stock;
+    renderGPGrid();
+  } catch(e) { toast('❌ '+e.message,'e'); }
+}
 
 // BANQUE
 async function renderBanque(el){

@@ -182,15 +182,19 @@ app.post('/api/cotisations', staffOnly, async (req, res) => {
 
 // ══ PRODUITS ══
 app.get('/api/produits', auth, async (req, res) => {
-  try { const db=await getDB(); res.json(db.prepare('SELECT * FROM produits WHERE actif=1 ORDER BY categorie,nom').all()); }
+  try {
+    const db=await getDB();
+    // Include image_b64 for display
+    res.json(db.prepare('SELECT id,nom,categorie,icon,prix_achat,prix_vente,stock,description,actif,image_b64,created_at FROM produits WHERE actif=1 ORDER BY categorie,nom').all());
+  }
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/produits', dirOnly, async (req, res) => {
   try {
     const db=await getDB();
-    const { nom, categorie, icon, prix_achat, prix_vente, stock, description } = req.body;
-    const r = db.prepare('INSERT INTO produits(nom,categorie,icon,prix_achat,prix_vente,stock,description)VALUES(?,?,?,?,?,?,?)').run(nom,categorie,icon||'📦',prix_achat||0,prix_vente||0,stock||0,description||'');
+    const { nom, categorie, icon, prix_achat, prix_vente, stock, description, image_b64 } = req.body;
+    const r = db.prepare('INSERT INTO produits(nom,categorie,icon,prix_achat,prix_vente,stock,description,image_b64)VALUES(?,?,?,?,?,?,?,?)').run(nom,categorie,icon||'📦',prix_achat||0,prix_vente||0,stock||0,description||'',image_b64||'');
     res.json({ ok:true, id: r.lastInsertRowid });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -198,8 +202,13 @@ app.post('/api/produits', dirOnly, async (req, res) => {
 app.put('/api/produits/:id', dirOnly, async (req, res) => {
   try {
     const db=await getDB();
-    const {nom,categorie,icon,prix_achat,prix_vente,stock,description}=req.body;
-    db.prepare('UPDATE produits SET nom=?,categorie=?,icon=?,prix_achat=?,prix_vente=?,stock=?,description=? WHERE id=?').run(nom,categorie,icon||'📦',prix_achat||0,prix_vente||0,stock||0,description||'',req.params.id);
+    const {nom,categorie,icon,prix_achat,prix_vente,stock,description,image_b64}=req.body;
+    // Si image_b64 fournie, la sauvegarder; sinon garder l'ancienne
+    if (image_b64 !== undefined && image_b64 !== '') {
+      db.prepare('UPDATE produits SET nom=?,categorie=?,icon=?,prix_achat=?,prix_vente=?,stock=?,description=?,image_b64=? WHERE id=?').run(nom,categorie,icon||'📦',prix_achat||0,prix_vente||0,stock||0,description||'',image_b64,req.params.id);
+    } else {
+      db.prepare('UPDATE produits SET nom=?,categorie=?,icon=?,prix_achat=?,prix_vente=?,stock=?,description=? WHERE id=?').run(nom,categorie,icon||'📦',prix_achat||0,prix_vente||0,stock||0,description||'',req.params.id);
+    }
     res.json({ ok:true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
