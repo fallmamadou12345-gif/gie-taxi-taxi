@@ -3916,13 +3916,20 @@ async function handleImport(input) {
   
   if (file.name.endsWith('.csv')) {
     const text = await file.text();
-    const rows = text.split('\n').filter(r => r.trim()).map(r => r.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
-    _importData = { type: 'csv', rows, filename: file.name };
+    // Handle both comma and semicolon separators, Windows line endings
+    const sep = text.includes(';') ? ';' : ',';
+    const rows = text.replace(/\r/g,'').split('\n')
+      .filter(r => r.trim())
+      .map(r => r.split(sep).map(c => c.trim().replace(/^"|"$/g, '')));
+    // Skip header row if first column is not a number (e.g. "N°", "id", etc.)
+    const startRow = (isNaN(parseInt(rows[0]?.[0])) && rows.length > 1) ? 1 : 0;
+    const dataRows = rows.slice(startRow);
+    _importData = { type: 'csv', rows: dataRows, filename: file.name };
     preview.style.display = 'block';
     preview.innerHTML = `<div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px;font-size:11px">
-      <b>Aperçu — ${file.name}</b> (${rows.length} lignes)<br>
+      <b>Aperçu — ${file.name}</b> (${dataRows.length} lignes de données)<br>
       <div style="overflow-x:auto;margin-top:8px"><table style="font-size:9px;border-collapse:collapse">
-        ${rows.slice(0,5).map(r=>`<tr>${r.map(c=>`<td style="padding:3px 8px;border:1px solid rgba(255,255,255,.1)">${c}</td>`).join('')}</tr>`).join('')}
+        ${dataRows.slice(0,5).map(r=>`<tr>${r.map(c=>`<td style="padding:3px 8px;border:1px solid rgba(255,255,255,.1)">${c}</td>`).join('')}</tr>`).join('')}
       </table></div>
     </div>`;
     document.getElementById('imp-btn').style.display = 'inline-flex';
@@ -3935,49 +3942,98 @@ async function handleImport(input) {
 async function doImport() {
   if (!_importData) return;
   const { rows } = _importData;
-  if (!rows || rows.length < 2) { toast('⚠️ Fichier vide ou invalide', 'w'); return; }
+  if (!rows || rows.length < 1) { toast('⚠️ Fichier vide', 'w'); return; }
   
-  // Detect type from headers
-  const headers = rows[0].map(h => h.toLowerCase());
-  let imported = 0;
-  
-  if (headers.includes('prénom') || headers.includes('prenom') || headers.includes('nom')) {
-    // Import membres
-    for (let i = 1; i < rows.length; i++) {
+  let imported = 0, skipped = 0;
+  const btn = document.getElementById('imp-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Import en cours...'; }
+
+  const cleanTel = t => (t||'').toString().replace(/[\s.\-]/g,'').replace('.0','').trim();
+  const cleanNum = n => parseInt((n||'').toString().replace(/\s/g,'')) || 0;
+
+  if (_importType === 'membres') {
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 2) continue;
+      
+      // Détecter le format automatiquement:
+      // Format 1: N°, Prénom, Nom, Tel           (4 colonnes)
+      // Format 2: N°, Prénom, Nom, Full, Tel      (5 colonnes - notre CSV)
+      // Format 3: Prénom, Nom, Tel               (3 colonnes)
+      let id, prenom, nom, tel, tel2='';
+      
+      if (r.length >= 5) {
+        // Format 5 colonnes: N°, Prénom, Nom, Prénom+Nom, Téléphone
+        id = cleanNum(r[0]);
+        prenom = (r[1]||'').trim().toUpperCase();
+        nom = (r[2]||'').trim().toUpperCase();
+        // Colonne 4 = téléphone (peut contenir espaces)
+        const telRaw = cleanTel(r[4]);
+        if (telRaw.includes('/')) {
+          [tel, tel2] = telRaw.split('/');
+        } else { tel = telRaw; }
+      } else if (r.length >= 4) {
+        // Format 4 colonnes: N°, Prénom, Nom, Téléphone
+        id = cleanNum(r[0]);
+        prenom = (r[1]||'').trim().toUpperCase();
+        nom = (r[2]||'').trim().toUpperCase();
+        const telRaw = cleanTel(r[3]);
+        if (telRaw.includes('/')) {
+          [tel, tel2] = telRaw.split('/');
+        } else { tel = telRaw; }
+      } else if (r.length >= 3) {
+        // Format 3 colonnes: Prénom, Nom, Téléphone
+        prenom = (r[0]||'').trim().toUpperCase();
+        nom = (r[1]||'').trim().toUpperCase();
+        tel = cleanTel(r[2]);
+      }
+      
+      if (!prenom || !nom) { skipped++; continue; }
+      if (!tel || tel.length < 8) { skipped++; continue; }
+      
+      try {
+        const body = { prenom, nom, telephone: tel, tel2: tel2||'', statut: 'actif' };
+        if (id) body.id = id;
+        await POST('/api/membres', body);
+        imported++;
+      } catch(e) { skipped++; }
+    }
+    toast(`✅ ${imported} membres importés${skipped>0?' · '+skipped+' ignorés':''}`);
+
+  } else if (_importType === 'cotisations') {
+    for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (!r || r.length < 3) continue;
+      const mid = cleanNum(r[0]);
+      const mois = (r[1]||'').trim();
+      const montant = cleanNum(r[2]) || 2000;
+      if (!mid || !mois) { skipped++; continue; }
       try {
-        await POST('/api/membres', {
-          prenom: r[1] || r[0], nom: r[2] || r[1],
-          telephone: r[3] || r[4] || '', tel2: r[4] || '',
-          statut: 'actif'
-        });
+        await POST('/api/cotisations', { membre_id: mid, mois, montant, mode: r[3]||'Espèces', date: r[4]||today() });
         imported++;
-      } catch(e) {}
+      } catch(e) { skipped++; }
     }
-    toast(`✅ ${imported} membres importés`);
-  } else if (headers.includes('mois') || headers.includes('cotisation')) {
-    // Import cotisations
-    for (let i = 1; i < rows.length; i++) {
+    toast(`✅ ${imported} cotisations importées${skipped>0?' · '+skipped+' ignorées':''}`);
+
+  } else if (_importType === 'banque') {
+    for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (!r || r.length < 3) continue;
+      const date = (r[0]||'').trim() || today();
+      const desig = (r[1]||'').trim();
+      const entree = cleanNum(r[2]);
+      const sortie = cleanNum(r[3]);
+      if (!desig) { skipped++; continue; }
       try {
-        await POST('/api/cotisations', {
-          membre_id: parseInt(r[0]), mois: r[1],
-          montant: parseInt(r[2]) || 2000,
-          mode: r[3] || 'Espèces',
-          date: r[4] || today()
-        });
+        await POST('/api/banque', { date, designation: desig, banque: r[4]||'CMS', entree, sortie, ref: '' });
         imported++;
-      } catch(e) {}
+      } catch(e) { skipped++; }
     }
-    toast(`✅ ${imported} cotisations importées`);
-  } else {
-    toast('⚠️ Format non reconnu — vérifiez les entêtes', 'w');
-    return;
+    toast(`✅ ${imported} mouvements banque importés`);
   }
-  
+
   await loadAll();
+  if (btn) { btn.disabled = false; btn.textContent = '✅ IMPORTER'; }
   closeModal('modal-generic');
 }
 
