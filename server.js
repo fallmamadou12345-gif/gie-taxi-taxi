@@ -276,6 +276,15 @@ app.post('/api/credits', staffOnly, async (req, res) => {
     }
     const restant=prix_vente-(montant_recu||0);
     const r=db.prepare('INSERT INTO credits(client,telephone,type,produit_id,prix_vente,montant_recu,restant,statut,client_type,membre_id,garant,garant_id,autorise_par,date_vente)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(client,telephone||'',type,produit_id||null,prix_vente,montant_recu||0,restant,restant===0?'Soldé':'En cours',client_type||'externe',membre_id||null,garant||'',garant_id||null,autorise_par||req.user.nom,date_vente||today());
+    // Enregistrer la reprise si fournie
+    const { valeur_reprise, description_reprise } = req.body;
+    if (valeur_reprise && valeur_reprise > 0) {
+      db.prepare('INSERT INTO reprises(credit_id,client,telephone,produit_type,description,valeur_reprise,date,saisi_par)VALUES(?,?,?,?,?,?,?,?)').run(
+        r.lastInsertRowid, client, telephone||'', type||'BATTERIE',
+        description_reprise||'Retour batterie lors de la vente', valeur_reprise,
+        date_vente||today(), req.user.nom
+      );
+    }
     const cid=r.lastInsertRowid;
     if (montant_recu>0) {
       const ref=genRef(db);
@@ -410,6 +419,37 @@ app.get('/api/stats', auth, async (req, res) => {
     const sc=db.prepare('SELECT SUM(entree)-SUM(sortie) as s FROM journal_caisse').get().s||0;
     const tx=db.prepare('SELECT SUM(entree) as e,SUM(sortie) as s FROM taxi_versements').get();
     res.json({membres_actifs:ma,membres_suspendus:ms,total_cotise:tc,credits_encours:ce.nb,credits_restant:ce.t||0,credits_soldes:cs,solde_banque:sb,solde_caisse:sc,taxi_entrees:tx.e||0,taxi_sorties:tx.s||0,taxi_net:(tx.e||0)-(tx.s||0)});
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ══ REPRISES ══
+app.get('/api/reprises', auth, async (req, res) => {
+  try {
+    const db = await getDB();
+    const reprises = db.prepare('SELECT * FROM reprises ORDER BY date DESC, id DESC').all();
+    const total = db.prepare('SELECT COUNT(*) as nb, SUM(valeur_reprise) as t FROM reprises').get();
+    res.json({ reprises, total_nb: total.nb||0, total_valeur: total.t||0 });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.post('/api/reprises', staffOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { credit_id, client, telephone, produit_type, description, valeur_reprise, date } = req.body;
+    if (!client || !valeur_reprise) return res.status(400).json({error:'Client et valeur requis'});
+    const r = db.prepare('INSERT INTO reprises(credit_id,client,telephone,produit_type,description,valeur_reprise,date,saisi_par)VALUES(?,?,?,?,?,?,?,?)').run(
+      credit_id||null, client, telephone||'', produit_type||'BATTERIE',
+      description||'', valeur_reprise, date||today(), req.user.nom
+    );
+    res.json({ ok:true, id: r.lastInsertRowid });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+app.delete('/api/reprises/:id', dirOnly, async (req, res) => {
+  try {
+    const db = await getDB();
+    db.prepare('DELETE FROM reprises WHERE id=?').run(req.params.id);
+    res.json({ok:true});
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 

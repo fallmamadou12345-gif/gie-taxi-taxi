@@ -2775,6 +2775,10 @@ function renderNouvelleVente(el){
         <input class="form-input" id="vf-reprise" type="number" value="0" min="0" oninput="calcVF()" style="font-size:14px" placeholder="0 si pas de reprise">
         <div style="font-size:9px;color:var(--tx2);margin-top:3px">Valeur de reprise déduite du prix</div>
       </div>
+      <div class="form-group" id="vf-reprise-desc-group" style="display:none">
+        <label>Description reprise (optionnel)</label>
+        <input class="form-input" id="vf-reprise-desc" placeholder="Ex: Batterie 12V usagée, bonne état..." style="font-size:13px">
+      </div>
       <div class="form-group"><label>Acompte reçu (FCFA)</label><input class="form-input" id="vf-acompte" type="number" value="0" oninput="calcVF()" style="font-size:14px"></div>
       <div class="form-group"><label>Mode de paiement</label>
         <select class="form-input" id="vf-mode">
@@ -2890,6 +2894,9 @@ function calcVF(){
   el.style.display='block';
   const prixNet = p - reprise; // Prix après déduction reprise
   const restant = prixNet - a;
+  // Afficher/masquer champ description
+  const descGrp = document.getElementById('vf-reprise-desc-group');
+  if (descGrp) descGrp.style.display = reprise>0 ? 'block' : 'none';
   el.innerHTML=`
     <div style="display:grid;grid-template-columns:repeat(${reprise>0?4:3},1fr);gap:10px;font-size:12px">
       <div>
@@ -3602,6 +3609,7 @@ async function renderGestionOp(el) {
     <div class="tab" onclick="gopTab('credits',this)">🔋 Crédits</div>
     <div class="tab" onclick="gopTab('versements',this)">💰 Versements</div>
     <div class="tab" onclick="gopTab('depenses',this)">💸 Dépenses</div>
+    <div class="tab" onclick="gopTab('reprises',this)">🔄 Reprises</div>
     <div class="tab" onclick="gopTab('journal',this)">🧾 Journal</div>
     ${isDir?`<div class="tab" onclick="gopTab('banque',this)">🏦 Banque</div>`:''}
   </div>
@@ -3655,6 +3663,45 @@ async function gopLoad(type) {
               <button class="btn btn-ghost btn-sm" onclick="gopEdit('cotisation',${c.id},${JSON.stringify({mois:c.mois,montant:c.montant,mode:c.mode,date:c.date}).replace(/"/g,'&quot;')})">✏️</button>
               <button class="btn btn-danger btn-sm" onclick="gopDel('cotisations',${c.id},'${(c.prenom||'')+' '+(c.nom||'')} — ${c.mois}')">🗑️</button>
             </td>
+          </tr>`).join('')}
+          </tbody></table>
+          </div>
+        </div>`;
+
+    } else if(type === 'reprises') {
+      const data = await GET('/api/reprises');
+      el.innerHTML = `
+        <div class="stat-grid" style="margin-bottom:14px">
+          <div class="stat-card sc-b">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-label">Total reprises</div>
+            <div class="stat-value">${data.total_nb}</div>
+            <div class="stat-sub">${f(data.total_valeur)} de valeur</div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-top">
+            <div class="table-title">🔄 Batteries reprises — ${data.reprises.length} enregistrements</div>
+            <input class="search-inp" placeholder="Rechercher..." oninput="gopFilter(this.value)" style="width:180px">
+          </div>
+          <div class="table-responsive">
+          <table><thead><tr>
+            <th>ID</th><th>Client</th><th>Type</th><th>Description</th>
+            <th>Valeur reprise</th><th>Date</th><th>Par</th>
+            ${['directeur','president'].includes(USER.role)?'<th>Action</th>':''}
+          </tr></thead>
+          <tbody id="gop-tbody">
+          ${data.reprises.map(r=>`<tr id="gop-row-${r.id}">
+            <td style="color:var(--tx2);font-size:9px">#${r.id}</td>
+            <td><b>${r.client}</b>${r.telephone?`<br><small style="color:var(--tx2)">${r.telephone}</small>`:''}</td>
+            <td><span class="badge b-or" style="font-size:9px">${r.produit_type}</span></td>
+            <td style="font-size:10px;color:var(--tx2)">${r.description||'—'}</td>
+            <td style="color:#3B82F6;font-weight:700">${f(r.valeur_reprise)}</td>
+            <td style="color:var(--tx2);font-size:10px">${r.date}</td>
+            <td style="font-size:9px;color:var(--tx2)">${r.saisi_par||'—'}</td>
+            ${['directeur','president'].includes(USER.role)?`<td>
+              <button class="btn btn-danger btn-sm" onclick="gopDel('reprises',${r.id},'reprise #${r.id}')">🗑️</button>
+            </td>`:''}
           </tr>`).join('')}
           </tbody></table>
           </div>

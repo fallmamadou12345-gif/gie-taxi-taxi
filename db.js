@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS credits(id INTEGER PRIMARY KEY AUTOINCREMENT,client T
 CREATE TABLE IF NOT EXISTS versements(id INTEGER PRIMARY KEY AUTOINCREMENT,credit_id INTEGER NOT NULL,montant INTEGER NOT NULL,mode TEXT DEFAULT 'Espèces',date TEXT NOT NULL,note TEXT DEFAULT '',ref_recu TEXT DEFAULT '',saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS journal_caisse(id INTEGER PRIMARY KEY AUTOINCREMENT,ref TEXT UNIQUE NOT NULL,date TEXT NOT NULL,client TEXT DEFAULT '',type TEXT NOT NULL,designation TEXT DEFAULT '',mode TEXT DEFAULT 'Espèces',entree INTEGER DEFAULT 0,sortie INTEGER DEFAULT 0,credit_id INTEGER,membre_id INTEGER,note TEXT DEFAULT '',saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS banque(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT NOT NULL,designation TEXT NOT NULL,banque TEXT DEFAULT 'CMS',entree INTEGER DEFAULT 0,sortie INTEGER DEFAULT 0,ref TEXT DEFAULT '',saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
+CREATE TABLE IF NOT EXISTS reprises(id INTEGER PRIMARY KEY AUTOINCREMENT,credit_id INTEGER,client TEXT NOT NULL,telephone TEXT DEFAULT '',produit_type TEXT DEFAULT 'BATTERIE',description TEXT DEFAULT '',valeur_reprise INTEGER NOT NULL,date TEXT NOT NULL,saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS depenses(id INTEGER PRIMARY KEY AUTOINCREMENT,date TEXT NOT NULL,designation TEXT NOT NULL,montant INTEGER NOT NULL,categorie TEXT DEFAULT 'Admin',saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS taxi_versements(id INTEGER PRIMARY KEY AUTOINCREMENT,periode TEXT NOT NULL,entree INTEGER DEFAULT 0,sortie INTEGER DEFAULT 0,observation TEXT DEFAULT '',date TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')));
 CREATE TABLE IF NOT EXISTS staff(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,pin_hash TEXT NOT NULL,role TEXT NOT NULL,nom TEXT DEFAULT '',actif INTEGER DEFAULT 1);
@@ -255,6 +256,7 @@ async function getDB() {
     "ALTER TABLE membres ADD COLUMN notes TEXT DEFAULT ''",
     "ALTER TABLE membres ADD COLUMN taxi TEXT DEFAULT ''",
     "ALTER TABLE membres ADD COLUMN adhesion TEXT DEFAULT ''",
+    "CREATE TABLE IF NOT EXISTS reprises(id INTEGER PRIMARY KEY AUTOINCREMENT,credit_id INTEGER,client TEXT NOT NULL,telephone TEXT DEFAULT '',produit_type TEXT DEFAULT 'BATTERIE',description TEXT DEFAULT '',valeur_reprise INTEGER NOT NULL,date TEXT NOT NULL,saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')))",
   ];
   migrations.forEach(sql => {
     try { dbWrapper.exec(sql); } catch(e) { /* colonne déjà existante */ }
