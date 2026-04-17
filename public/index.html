@@ -1800,6 +1800,8 @@ function renderProduits(el) {
 // ENCAISSEMENT
 // ═══════════════════════════════════════
 function renderEncaissement(el) {
+  // Contrôleur: seulement versements crédit
+  if (USER.role === 'controleur') { renderVersementCtrl(el); return; }
   el.innerHTML=`
   <div class="page-header"><div class="page-title">Caisse — Encaissement</div><div class="page-sub">Enregistrement rapide · Reçu automatique · Données en temps réel</div></div>
   <div id="enc-day-stats" class="stat-grid" style="margin-bottom:16px"></div>
@@ -4067,6 +4069,157 @@ function exportCSV() {
   a.href = url; a.download = 'membres_gie_'+today()+'.csv'; a.click();
   URL.revokeObjectURL(url);
   toast('✅ Export CSV téléchargé');
+}
+
+
+// ── PAGE VERSEMENT CONTRÔLEUR ──
+async function renderVersementCtrl(el) {
+  await loadAll();
+  const credits = STATE.credits.filter(c => c.statut === 'En cours');
+  const totalRestant = credits.reduce((s,c) => s+(c.restant||0), 0);
+  const totalEncaisse = credits.reduce((s,c) => s+(c.montant_recu||0), 0);
+
+  el.innerHTML = `
+  <div class="page-header">
+    <div class="page-title">💼 Recouvrement Crédits</div>
+    <div class="page-sub">Contrôleur · Versements clients · ${credits.length} dossiers en cours</div>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom:16px">
+    <div class="stat-card sc-r">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-label">À recouvrer</div>
+      <div class="stat-value" style="font-size:16px">${f(totalRestant)}</div>
+      <div class="stat-sub">${credits.length} dossiers</div>
+    </div>
+    <div class="stat-card sc-v">
+      <div class="stat-icon">✅</div>
+      <div class="stat-label">Déjà encaissé</div>
+      <div class="stat-value" style="font-size:16px">${f(totalEncaisse)}</div>
+    </div>
+  </div>
+
+  <!-- Liste des crédits en cours -->
+  <div class="table-card">
+    <div class="table-top">
+      <div class="table-title">📋 Dossiers en cours — cliquer pour verser</div>
+      <input class="search-inp" placeholder="Rechercher client..." oninput="ctrlFilterCredits(this.value)" style="width:180px">
+    </div>
+    <div class="table-responsive">
+    <table><thead><tr>
+      <th>Client</th><th>Type</th><th>Total</th><th>Versé</th>
+      <th style="color:#E74C3C">Restant</th><th>Actions</th>
+    </tr></thead>
+    <tbody id="ctrl-credits-tbody">
+    ${credits.map(c => `<tr id="ctrl-row-${c.id}">
+      <td>
+        <b>${c.client}</b>
+        ${c.telephone ? `<br><small style="color:var(--tx2)">${c.telephone}</small>` : ''}
+        ${c.garant ? `<br><small style="color:#F5A623">Garant: ${c.garant}</small>` : ''}
+      </td>
+      <td><span class="badge b-or" style="font-size:9px">${c.type}</span></td>
+      <td style="font-size:11px">${f(c.prix_vente)}</td>
+      <td style="color:#27AE60;font-size:11px">${f(c.montant_recu)}</td>
+      <td style="color:#E74C3C;font-weight:700">${f(c.restant)}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="ctrlVerser(${c.id},'${c.client.replace(/'/g,"\'")}',${c.restant})"
+          style="background:#27AE60;border-color:#27AE60;font-size:11px">
+          💰 Verser
+        </button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>
+    </div>
+  </div>
+
+  <!-- Historique versements session -->
+  <div class="table-card" style="margin-top:16px">
+    <div class="table-top"><div class="table-title">✅ Versements — session en cours</div></div>
+    <div class="table-responsive">
+    <table><thead><tr><th>Client</th><th>Montant</th><th>Mode</th><th>Reçu</th></tr></thead>
+    <tbody id="ctrl-hist-tbody">
+      <tr><td colspan="4" style="text-align:center;color:var(--tx2);padding:14px">Aucun versement cette session</td></tr>
+    </tbody></table>
+    </div>
+  </div>`;
+}
+
+function ctrlFilterCredits(q) {
+  const ql = q.toLowerCase();
+  document.querySelectorAll('#ctrl-credits-tbody tr').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(ql) ? '' : 'none';
+  });
+}
+
+async function ctrlVerser(creditId, clientNom, restant) {
+  // Modal de versement rapide
+  document.getElementById('modal-generic-body').innerHTML = `
+    <div class="modal-close" onclick="closeModal('modal-generic')">✕</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--taxi-or);margin-bottom:4px">
+      💰 Verser — ${clientNom}
+    </div>
+    <div style="color:#E74C3C;font-size:13px;margin-bottom:16px">Restant à payer : <b>${f(restant)}</b></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Montant versé (FCFA)</label>
+        <input class="form-input" id="cv-montant" type="number" value="${restant}" min="100"
+          style="font-size:20px;font-weight:700;color:#27AE60">
+      </div>
+      <div class="form-group">
+        <label>Mode de paiement</label>
+        <select class="form-input" id="cv-mode">
+          <option>Espèces</option><option>Wave</option><option>Orange Money</option><option>Free Money</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input class="form-input" id="cv-date" type="date" value="${today()}">
+      </div>
+      <div class="form-group">
+        <label>Note (optionnel)</label>
+        <input class="form-input" id="cv-note" placeholder="Remarque...">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="ctrlSaveVersement(${creditId},'${clientNom.replace(/'/g,"\'")}',${restant})"
+        style="background:#27AE60;border-color:#27AE60;font-size:15px;padding:13px 28px">
+        ✅ ENREGISTRER LE VERSEMENT
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-generic')">Annuler</button>
+    </div>`;
+  document.getElementById('modal-generic').classList.add('show');
+}
+
+async function ctrlSaveVersement(creditId, clientNom, restant) {
+  const montant = parseInt(document.getElementById('cv-montant').value) || 0;
+  const mode = document.getElementById('cv-mode').value;
+  const date = document.getElementById('cv-date').value;
+  const note = document.getElementById('cv-note').value;
+  if (!montant || montant < 100) { toast('⚠️ Montant requis', 'w'); return; }
+  try {
+    const r = await POST('/api/credits/'+creditId+'/versement', {montant, mode, date, note});
+    toast(`✅ ${f(montant)} versé · ${clientNom}`);
+    closeModal('modal-generic');
+    // Update row
+    const row = document.getElementById('ctrl-row-'+creditId);
+    if (row) {
+      const newRestant = Math.max(0, restant - montant);
+      if (newRestant === 0) row.remove();
+    }
+    // Add to session history
+    const tbody = document.getElementById('ctrl-hist-tbody');
+    if (tbody) {
+      if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+      tbody.insertAdjacentHTML('afterbegin', `<tr>
+        <td><b>${clientNom}</b></td>
+        <td style="color:#27AE60;font-weight:700">${f(montant)}</td>
+        <td>${mode}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="showRecuById('${r.ref||''}')">🧾</button></td>
+      </tr>`);
+    }
+    showRecu({ref:r.ref||'', date, client:clientNom, type:'VERSEMENT', designation:'Versement crédit', mode, montant, note});
+    await loadAll();
+  } catch(e) { toast('❌ '+e.message, 'e'); }
 }
 
 
