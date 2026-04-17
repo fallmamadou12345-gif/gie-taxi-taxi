@@ -2770,6 +2770,11 @@ function renderNouvelleVente(el){
     <!-- MONTANTS -->
     <div class="form-grid">
       <div class="form-group"><label>Prix de vente (FCFA)</label><input class="form-input" id="vf-prix" type="number" placeholder="40 000" oninput="calcVF()" style="font-size:14px"></div>
+      <div class="form-group">
+        <label>🔄 Reprise ancienne batterie (FCFA)</label>
+        <input class="form-input" id="vf-reprise" type="number" value="0" min="0" oninput="calcVF()" style="font-size:14px" placeholder="0 si pas de reprise">
+        <div style="font-size:9px;color:var(--tx2);margin-top:3px">Valeur de reprise déduite du prix</div>
+      </div>
       <div class="form-group"><label>Acompte reçu (FCFA)</label><input class="form-input" id="vf-acompte" type="number" value="0" oninput="calcVF()" style="font-size:14px"></div>
       <div class="form-group"><label>Mode de paiement</label>
         <select class="form-input" id="vf-mode">
@@ -2877,28 +2882,50 @@ function acProdVente(q){
 }
 function selProdVente(id,name,prix){document.getElementById('vf-prod').value=name;document.getElementById('vf-prod-id').value=id;document.getElementById('vf-prod-ac').classList.remove('show');document.getElementById('vf-prix').value=prix;calcVF();}
 function calcVF(){
-  const p=parseInt(document.getElementById('vf-prix').value)||0;
-  const a=parseInt(document.getElementById('vf-acompte').value)||0;
-  const el=document.getElementById('vf-calc');
+  const p = parseInt(document.getElementById('vf-prix').value)||0;
+  const reprise = parseInt(document.getElementById('vf-reprise')?.value)||0;
+  const a = parseInt(document.getElementById('vf-acompte').value)||0;
+  const el = document.getElementById('vf-calc');
   if(!p){el.style.display='none';return;}
   el.style.display='block';
-  const restant=p-a;
+  const prixNet = p - reprise; // Prix après déduction reprise
+  const restant = prixNet - a;
   el.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:12px">
-      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">PRIX TOTAL</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#F5A623">${f(p)}</div></div>
-      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">ACOMPTE REÇU</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#27AE60">${f(a)}</div></div>
-      <div><div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">RESTANT DÛ</div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:${restant>0?'#E74C3C':'#27AE60'}">${restant===0?'✅ SOLDÉ':f(restant)}</div></div>
-    </div>`;
+    <div style="display:grid;grid-template-columns:repeat(${reprise>0?4:3},1fr);gap:10px;font-size:12px">
+      <div>
+        <div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">PRIX VENTE</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#F5A623">${f(p)}</div>
+      </div>
+      ${reprise>0?`<div>
+        <div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">🔄 REPRISE DÉDUITE</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#3B82F6">- ${f(reprise)}</div>
+      </div>`:''}
+      <div>
+        <div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">${reprise>0?'PRIX NET':'ACOMPTE'}</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#27AE60">${reprise>0?f(prixNet):f(a)}</div>
+      </div>
+      <div>
+        <div style="color:var(--color-text-secondary);font-size:10px;margin-bottom:3px">RESTANT DÛ</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:${restant<=0?'#27AE60':'#E74C3C'}">
+          ${restant<=0?'✅ SOLDÉ':f(restant)}
+        </div>
+      </div>
+    </div>
+    ${reprise>0?`<div style="margin-top:8px;font-size:10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:6px 10px;color:#3B82F6">
+      🔄 Reprise batterie: <b>${f(reprise)}</b> déduite → Prix net client: <b>${f(prixNet)}</b>
+    </div>`:''}`;
 }
 async function saveVente(){
-  const prix=parseInt(document.getElementById('vf-prix').value)||0;
+  const prixBrut=parseInt(document.getElementById('vf-prix').value)||0;
+  const reprise=parseInt(document.getElementById('vf-reprise')?.value)||0;
+  const prix=prixBrut-reprise; // Prix net après reprise batterie
   const acompte=parseInt(document.getElementById('vf-acompte').value)||0;
   const mode=document.getElementById('vf-mode').value;
   const date=document.getElementById('vf-date').value;
   const auth=document.getElementById('vf-auth').value;
   const prodId=document.getElementById('vf-prod-id').value;
   const prodNom=document.getElementById('vf-prod').value;
-  if(!prix){toast('⚠️ Prix de vente requis','w');return;}
+  if(!prixBrut){toast('⚠️ Prix de vente requis','w');return;}
 
   let client, telephone='', clientId=null, garantId=null, garant='', clientType=window._vType||'membre';
 
@@ -2945,7 +2972,7 @@ async function saveVente(){
 }
 
 function resetVF(){
-  ['vf-client','vf-garant','vf-prod','vf-prix','vf-acompte','vf-ext-nom','vf-ext-tel'].forEach(i=>{
+  ['vf-client','vf-garant','vf-prod','vf-prix','vf-reprise','vf-acompte','vf-ext-nom','vf-ext-tel'].forEach(i=>{
     const el=document.getElementById(i);
     if(el)el.value=i==='vf-acompte'?'0':'';
   });
