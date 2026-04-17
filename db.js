@@ -303,10 +303,13 @@ async function reloadFromDisk() {
   const SQL = await initSqlJs();
   if (!fs.existsSync(DB_PATH)) throw new Error('DB file not found: ' + DB_PATH);
   const freshDb = new SQL.Database(fs.readFileSync(DB_PATH));
+  // Reset both the wrapper and the underlying sql.js instance
+  dbWrapper = null;
+  sqlDb = freshDb;
   dbWrapper = makeWrapper(freshDb);
-  _db = freshDb;
   const n = dbWrapper.prepare('SELECT COUNT(*) as n FROM membres').get().n;
-  console.log('✅ DB rechargée depuis disque:', n, 'membres');
+  const s = dbWrapper.prepare('SELECT COUNT(*) as n FROM staff').get().n;
+  console.log(`✅ DB rechargée depuis disque: ${n} membres, ${s} staff`);
   return dbWrapper;
 }
 
