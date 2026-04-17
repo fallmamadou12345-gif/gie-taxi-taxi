@@ -4167,10 +4167,10 @@ function setImpType(type, btn) {
   });
   btn.className='btn btn-primary btn-sm'; btn.style.flex='1';
   const hints = {
-    membres: '<b>Format CSV Membres :</b><br>Colonne A: N°, B: Prénom, C: Nom, D: Téléphone<br>Exemple : <code style="color:#F5A623">1,DAOUDA,NDIAYE,776351010</code>',
-    cotisations: '<b>Format CSV Cotisations :</b><br>Colonne A: N° Membre, B: Mois, C: Montant<br>Exemple : <code style="color:#F5A623">1,Janvier,2000</code>',
-    credits: '<b>Format CSV Crédits/Ventes :</b><br>CLIENT, TYPE, PRIX_VENTE, MONTANT_RECU, RESTANT, GARANT, DATE_VENTE, STATUT<br>Exemple : <code style="color:#F5A623">IBRAHIMA WADE,BATTERIE,45000,20000,25000,,2025-09-01,En cours</code><br><small>Types: BATTERIE · ELECTROMENAGER · HUILE · ASSURANCE · TELEPHONE</small>',
-    banque: '<b>Format CSV Banque :</b><br>Colonne A: Date, B: Désignation, C: Entrée, D: Sortie<br>Exemple : <code style="color:#F5A623">2026-04-16,Versement cotisations,50000,0</code>'
+    membres: '<b>Format CSV Membres :</b><br>Colonne A: N°, B: Prénom, C: Nom, D: Téléphone<br>Exemple : <code style='color:#F5A623'>1,DAOUDA,NDIAYE,776351010</code>',
+    cotisations: '<b>Format CSV Cotisations :</b><br>Colonne A: N° Membre, B: Mois, C: Montant<br>Exemple : <code style='color:#F5A623'>1,Janvier,2000</code>',
+    credits: '<b>Format CSV Crédits :</b><br>CLIENT,TYPE,PRIX_VENTE,MONTANT_RECU,RESTANT,GARANT,DATE_VENTE,STATUT<br>Exemple : <code style='color:#F5A623'>IBRAHIMA WADE,BATTERIE,45000,20000,25000,,2025-09-01,En cours</code><br>Types: BATTERIE · ELECTROMENAGER · HUILE · ASSURANCE',
+    banque: '<b>Format CSV Banque :</b><br>Colonne A: Date, B: Désignation, C: Entrée, D: Sortie<br>Exemple : <code style='color:#F5A623'>2026-04-16,Versement cotisations,50000,0</code>'
   };
   const h = document.getElementById('imp-format-hint');
   if(h) h.innerHTML = hints[type];
@@ -4341,7 +4341,7 @@ function downloadCreditsTemplate() {
     ['SIDY','HUILE',13000,0,13000,'','2025-09-01','En cours'],
     ['MALICK MBAYE','ASSURANCE',21500,18500,3000,'AA339FT','2025-09-01','En cours'],
   ];
-  const csv = '﻿' + [headers, ...exemples].map(r=>r.map(c=>`"${c}"`).join(',')).join('
+  const csv = [headers, ...exemples].map(r=>r.map(c=>'"'+String(c)+'"').join(',')).join('\n');
 ');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -4353,7 +4353,7 @@ function downloadCreditsTemplate() {
 function exportCSV() {
   const headers = ['N°','Prénom','Nom','Téléphone','Téléphone2','Cotisé 2026','Mois payés','Statut'];
   const rows = STATE.membres.map(m => [m.id, m.prenom, m.nom, m.telephone, m.tel2||'', m.total_2026||0, m.mois_payes||0, m.statut]);
-  const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const csv = [headers, ...rows].map(r => r.map(c => '"'+String(c)+'"').join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
