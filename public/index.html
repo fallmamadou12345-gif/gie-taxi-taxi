@@ -1839,6 +1839,10 @@ function renderEncaissement(el) {
         <div style="font-size:15px;margin-bottom:2px">➕</div>
         <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary)">Autre Entrée</div>
       </div>
+      <div class="enc-tab" id="etab-reprise" onclick="setEncTab('reprise',this)" style="padding:10px 6px;text-align:center;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s">
+        <div style="font-size:15px;margin-bottom:2px">🔄</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--color-text-secondary)">Reprise</div>
+      </div>
     </div>
 
     <div style="padding:16px">
@@ -1874,6 +1878,40 @@ function renderEncaissement(el) {
           <div class="form-group">
             <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Nom du client</label>
             <input class="form-input" id="enc-vente-client" placeholder="Nom du client..." style="font-size:13px">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION : REPRISE BATTERIE ── -->
+      <div id="esec-reprise" style="display:none">
+        <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#3B82F6">
+          🔄 <b>Reprise batterie</b> : enregistrer le retour d'une ancienne batterie par un client lors d'un achat ou séparément.
+        </div>
+        <div style="font-size:10px;color:var(--color-text-secondary);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">🔄 Détails de la reprise</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Nom du client</label>
+            <input class="form-input" id="enc-rep-client" placeholder="Nom du client..." style="font-size:14px">
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Téléphone</label>
+            <input class="form-input" id="enc-rep-tel" placeholder="77X XXX XXX" style="font-size:14px">
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Type de produit repris</label>
+            <select class="form-input" id="enc-rep-type">
+              <option value="BATTERIE">🔋 Batterie</option>
+              <option value="TELEPHONE">📱 Téléphone</option>
+              <option value="AUTRE">📦 Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Valeur de reprise (FCFA)</label>
+            <input class="form-input" id="enc-rep-valeur" type="number" placeholder="8 000" min="0" style="font-size:16px;font-weight:700;color:#3B82F6">
+          </div>
+          <div class="form-group" style="grid-column:1/-1">
+            <label style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:block">Description (état, marque...)</label>
+            <input class="form-input" id="enc-rep-desc" placeholder="Ex: Batterie SOLANCE 12V usagée, bonne état..." style="font-size:13px">
           </div>
         </div>
       </div>
@@ -2236,6 +2274,21 @@ async function doEncaissement(){
       ref=genLocalRef();
       entry={ref,date,client:benef||'GIE',type:'DÉPENSE',designation:desig+(benef?' — '+benef:''),mode,montant};
       toast('💸 Dépense enregistrée · '+desig+' · '+f(montant));
+
+    } else if(ENC_TYPE==='reprise'){
+      const client = document.getElementById('enc-rep-client').value.trim();
+      const tel = document.getElementById('enc-rep-tel').value.trim();
+      const repType = document.getElementById('enc-rep-type').value;
+      const valeur = parseInt(document.getElementById('enc-rep-valeur').value)||0;
+      const desc = document.getElementById('enc-rep-desc').value.trim();
+      if(!client){toast('⚠️ Nom du client requis','w');return;}
+      if(!valeur){toast('⚠️ Valeur de reprise requise','w');return;}
+      await POST('/api/reprises',{client,telephone:tel,produit_type:repType,description:desc,valeur_reprise:valeur,date});
+      toast(`✅ Reprise enregistrée · ${client} · ${f(valeur)}`);
+      // Reset fields
+      ['enc-rep-client','enc-rep-tel','enc-rep-desc','enc-rep-valeur'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      await loadAll();
+      return; // Pas de reçu pour reprise seule
 
     } else {
       const desig=document.getElementById('enc-autre-desig').value||'Entrée caisse';
