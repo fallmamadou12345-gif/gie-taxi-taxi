@@ -413,6 +413,59 @@ app.get('/api/stats', auth, async (req, res) => {
   } catch(e) { res.status(500).json({error:e.message}); }
 });
 
+// ══ STATS PAR PÉRIODE ══
+app.get('/api/stats/periode', auth, async (req, res) => {
+  try {
+    const db = await getDB();
+    const { debut, fin } = req.query;
+    const d1 = debut || '2024-01-01';
+    const d2 = fin || new Date().toISOString().split('T')[0];
+
+    // Caisse: toutes entrées/sorties dans la période
+    const caisse = db.prepare('SELECT SUM(entree) as e, SUM(sortie) as s FROM journal_caisse WHERE date BETWEEN ? AND ?').get(d1,d2);
+    const entrees_caisse = caisse.e||0;
+    const sorties_caisse = caisse.s||0;
+
+    // Détail par type
+    const cotisations = db.prepare("SELECT SUM(montant) as t, COUNT(*) as nb FROM cotisations WHERE date BETWEEN ? AND ?").get(d1,d2);
+    const versements_credits = db.prepare("SELECT SUM(j.entree) as t, COUNT(*) as nb FROM journal_caisse j WHERE j.type='CREDIT' AND j.date BETWEEN ? AND ?").get(d1,d2);
+    const ventes = db.prepare("SELECT SUM(j.entree) as t, COUNT(*) as nb FROM journal_caisse j WHERE j.type='VENTE' AND j.date BETWEEN ? AND ?").get(d1,d2);
+    const depenses = db.prepare("SELECT SUM(montant) as t, COUNT(*) as nb FROM depenses WHERE date BETWEEN ? AND ?").get(d1,d2);
+    const versements_banque = db.prepare("SELECT SUM(entree) as t, COUNT(*) as nb FROM banque WHERE date BETWEEN ? AND ?").get(d1,d2);
+    const retraits_banque = db.prepare("SELECT SUM(sortie) as t FROM banque WHERE date BETWEEN ? AND ?").get(d1,d2);
+    const taxi = db.prepare("SELECT SUM(entree) as e, SUM(sortie) as s FROM taxi_versements WHERE date BETWEEN ? AND ?").get(d1,d2);
+
+    // Solde caisse = toutes entrées - toutes sorties - versements vers banque
+    const solde_caisse = entrees_caisse - sorties_caisse;
+    const solde_banque = (versements_banque.t||0) - (retraits_banque.t||0);
+
+    res.json({
+      periode: { debut: d1, fin: d2 },
+      caisse: {
+        entrees: entrees_caisse,
+        sorties: sorties_caisse,
+        solde: solde_caisse,
+      },
+      detail_entrees: {
+        cotisations: { montant: cotisations.t||0, nb: cotisations.nb||0 },
+        versements_credits: { montant: versements_credits.t||0, nb: versements_credits.nb||0 },
+        ventes: { montant: ventes.t||0, nb: ventes.nb||0 },
+        taxi: { montant: taxi.e||0 }
+      },
+      detail_sorties: {
+        depenses: { montant: depenses.t||0, nb: depenses.nb||0 },
+        versements_banque: { montant: versements_banque.t||0, nb: versements_banque.nb||0 },
+      },
+      banque: {
+        entrees: versements_banque.t||0,
+        sorties: retraits_banque.t||0,
+        solde: solde_banque
+      },
+      taxi: { entrees: taxi.e||0, sorties: taxi.s||0, net: (taxi.e||0)-(taxi.s||0) }
+    });
+  } catch(e) { res.status(500).json({error:e.message}); }
+});
+
 app.get('/api/recu/:ref', auth, async (req, res) => {
   try { const db=await getDB(); const r=db.prepare('SELECT * FROM journal_caisse WHERE ref=?').get(req.params.ref); r?res.json(r):res.status(404).json({error:'Introuvable'}); }
   catch(e) { res.status(500).json({error:e.message}); }

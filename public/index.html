@@ -3418,32 +3418,147 @@ async function renderJournal(el){
 }
 
 // RECAP
-function renderRecap(el){
-  const s=STATE.stats;
-  el.innerHTML=`
-  <div class="page-header"><div class="page-title">Récapitulatif Général</div><div class="page-sub">Bilan financier complet 2025–2026</div></div>
-  <div class="stat-grid">
-    <div class="stat-card sc-v"><div class="stat-icon">📈</div><div class="stat-label">Bénéfice net</div><div class="stat-value">1 286 542 F</div></div>
-    <div class="stat-card sc-or"><div class="stat-icon">💰</div><div class="stat-label">Total bénéfices</div><div class="stat-value">2 693 582 F</div></div>
-    <div class="stat-card sc-r"><div class="stat-icon">💸</div><div class="stat-label">Total dépenses</div><div class="stat-value">1 407 040 F</div></div>
-    <div class="stat-card sc-b"><div class="stat-icon">🏦</div><div class="stat-label">Banque</div><div class="stat-value">${fk(s.solde_banque||2004500)}</div></div>
-    <div class="stat-card sc-b"><div class="stat-icon">💵</div><div class="stat-label">Caisse</div><div class="stat-value">651 033 F</div></div>
-    <div class="stat-card sc-r"><div class="stat-icon">⚠️</div><div class="stat-label">Dettes</div><div class="stat-value">${fk(s.credits_restant||1587000)}</div></div>
+async function renderRecap(el) {
+  // Calculer période par défaut: mois en cours
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const defaultDebut = `${y}-01-01`;
+  const defaultFin = `${y}-${m}-${String(now.getDate()).padStart(2,'0')}`;
+
+  el.innerHTML = `
+  <div class="page-header">
+    <div class="page-title">📊 Récapitulatif Financier</div>
+    <div class="page-sub">Bilan par période · Caisse · Banque · Détail</div>
   </div>
-  <div class="table-card"><div class="table-top"><div class="table-title">Bilan par activité</div></div>
-  <div class="table-responsive"><table><thead><tr><th>Activité</th><th>Bénéfice</th><th>Achats/Dép.</th><th>Net</th><th>Dettes</th></tr></thead>
-  <tbody>
-    <tr><td>🔋 Batteries</td><td style="color:var(--taxi-vert-clair);font-weight:700">403 500 F</td><td style="color:var(--taxi-rouge-clair)">2 673 000 F</td><td style="color:var(--taxi-vert-clair)">+403 500 F</td><td style="color:var(--taxi-rouge-clair)">618 500 F</td></tr>
-    <tr><td>📱 Tél/Élec</td><td style="color:var(--taxi-vert-clair);font-weight:700">302 800 F</td><td style="color:var(--taxi-rouge-clair)">1 944 100 F</td><td style="color:var(--taxi-vert-clair)">+302 800 F</td><td style="color:var(--taxi-rouge-clair)">942 500 F</td></tr>
-    <tr><td>🛡️ Assurance</td><td style="color:var(--taxi-vert-clair);font-weight:700">64 071 F</td><td style="color:var(--taxi-rouge-clair)">371 133 F</td><td style="color:var(--taxi-vert-clair)">+64 071 F</td><td>—</td></tr>
-    <tr><td>🚖 Taxi GIE</td><td style="color:var(--taxi-vert-clair);font-weight:700">928 711 F</td><td style="color:var(--taxi-rouge-clair)">582 954 F</td><td style="color:var(--taxi-vert-clair)">+928 711 F</td><td>—</td></tr>
-    <tr><td>🛢️ Huile</td><td style="color:var(--taxi-vert-clair);font-weight:700">21 000 F</td><td style="color:var(--taxi-rouge-clair)">57 000 F</td><td style="color:var(--taxi-vert-clair)">+21 000 F</td><td style="color:var(--taxi-rouge-clair)">26 000 F</td></tr>
-    <tr><td>💳 Cotisations</td><td style="color:var(--taxi-vert-clair);font-weight:700">973 500 F</td><td>—</td><td style="color:var(--taxi-vert-clair)">+973 500 F</td><td>—</td></tr>
-    <tr><td>💸 Dépenses</td><td>—</td><td style="color:var(--taxi-rouge-clair)">1 407 040 F</td><td style="color:var(--taxi-rouge-clair)">-1 407 040 F</td><td>—</td></tr>
-    <tr style="font-weight:bold;background:rgba(245,166,35,.04)"><td>📊 TOTAL</td><td style="color:var(--taxi-vert-clair)">2 693 582 F</td><td style="color:var(--taxi-rouge-clair)">1 407 040 F</td><td style="color:var(--taxi-vert-clair)">+1 286 542 F</td><td style="color:var(--taxi-rouge-clair)">1 587 000 F</td></tr>
-  </tbody></table></div></div>`;
+
+  <!-- FILTRES PÉRIODE -->
+  <div class="form-card" style="margin-bottom:16px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="margin:0;flex:1;min-width:130px">
+        <label style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:1px">Du</label>
+        <input class="form-input" id="rp-debut" type="date" value="${defaultDebut}">
+      </div>
+      <div class="form-group" style="margin:0;flex:1;min-width:130px">
+        <label style="font-size:9px;color:var(--tx2);text-transform:uppercase;letter-spacing:1px">Au</label>
+        <input class="form-input" id="rp-fin" type="date" value="${defaultFin}">
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="setRecapPeriode('today')">📅 Aujourd'hui</button>
+        <button class="btn btn-ghost btn-sm" onclick="setRecapPeriode('week')">📅 Semaine</button>
+        <button class="btn btn-ghost btn-sm" onclick="setRecapPeriode('month')">📅 Mois</button>
+        <button class="btn btn-ghost btn-sm" onclick="setRecapPeriode('year')">📅 Année</button>
+        <button class="btn btn-primary btn-sm" onclick="loadRecap()">🔍 Appliquer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="recap-content"><div class="loader"><div class="spinner"></div>Chargement...</div></div>`;
+
+  await loadRecap();
 }
 
+function setRecapPeriode(type) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  let debut, fin = fmt(now);
+  if (type === 'today') {
+    debut = fin;
+  } else if (type === 'week') {
+    const d = new Date(now); d.setDate(d.getDate()-7);
+    debut = fmt(d);
+  } else if (type === 'month') {
+    debut = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+  } else if (type === 'year') {
+    debut = `${now.getFullYear()}-01-01`;
+  }
+  document.getElementById('rp-debut').value = debut;
+  document.getElementById('rp-fin').value = fin;
+  loadRecap();
+}
+
+async function loadRecap() {
+  const debut = document.getElementById('rp-debut')?.value;
+  const fin = document.getElementById('rp-fin')?.value;
+  if (!debut || !fin) return;
+  const el = document.getElementById('recap-content');
+  if (!el) return;
+  el.innerHTML = '<div class="loader"><div class="spinner"></div>Calcul en cours...</div>';
+  try {
+    const d = await GET(`/api/stats/periode?debut=${debut}&fin=${fin}`);
+    const s = STATE.stats;
+
+    el.innerHTML = `
+    <!-- SOLDES ACTUELS -->
+    <div style="background:rgba(245,166,35,.05);border:1px solid rgba(245,166,35,.15);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;color:var(--tx2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">💰 SOLDES ACTUELS (tout temps)</div>
+      <div class="stat-grid">
+        <div class="stat-card sc-v"><div class="stat-icon">💵</div><div class="stat-label">Caisse actuelle</div><div class="stat-value">${f(s.solde_caisse||0)}</div></div>
+        <div class="stat-card sc-b"><div class="stat-icon">🏦</div><div class="stat-label">Banque actuelle</div><div class="stat-value">${f(s.solde_banque||0)}</div></div>
+        <div class="stat-card sc-r"><div class="stat-icon">⚠️</div><div class="stat-label">Crédits à recouvrer</div><div class="stat-value">${f(s.credits_restant||0)}</div></div>
+        <div class="stat-card sc-or"><div class="stat-icon">🚖</div><div class="stat-label">Taxi net</div><div class="stat-value">${f(s.taxi_net||0)}</div></div>
+      </div>
+    </div>
+
+    <!-- PÉRIODE SÉLECTIONNÉE -->
+    <div style="font-size:11px;font-weight:700;color:var(--taxi-or);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">
+      📅 Période : ${debut} → ${fin}
+    </div>
+
+    <!-- ENTRÉES CAISSE -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.2);border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#27AE60;text-transform:uppercase;font-weight:700;margin-bottom:12px">⬆️ ENTRÉES CAISSE — ${f(d.caisse.entrees)}</div>
+        ${[
+          ['💳 Cotisations', d.detail_entrees.cotisations.montant, d.detail_entrees.cotisations.nb, 'opérations'],
+          ['🔋 Versements crédits', d.detail_entrees.versements_credits.montant, d.detail_entrees.versements_credits.nb, 'versements'],
+          ['🛒 Ventes comptant', d.detail_entrees.ventes.montant, d.detail_entrees.ventes.nb, 'ventes'],
+          ['🚖 Taxi GIE', d.detail_entrees.taxi.montant, null, ''],
+        ].map(([label, montant, nb, unit]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+            <div>
+              <div style="font-size:12px;font-weight:600">${label}</div>
+              ${nb !== null ? `<div style="font-size:9px;color:var(--tx2)">${nb} ${unit}</div>` : ''}
+            </div>
+            <div style="font-weight:700;font-size:14px;color:#27AE60">${f(montant||0)}</div>
+          </div>`).join('')}
+      </div>
+
+      <div style="background:rgba(231,76,60,.06);border:1px solid rgba(231,76,60,.2);border-radius:10px;padding:14px">
+        <div style="font-size:10px;color:#E74C3C;text-transform:uppercase;font-weight:700;margin-bottom:12px">⬇️ SORTIES CAISSE — ${f(d.caisse.sorties)}</div>
+        ${[
+          ['💸 Dépenses', d.detail_sorties.depenses.montant, d.detail_sorties.depenses.nb, 'dépenses'],
+          ['🏦 Virements banque', d.detail_sorties.versements_banque.montant, d.detail_sorties.versements_banque.nb, 'virements'],
+        ].map(([label, montant, nb, unit]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+            <div>
+              <div style="font-size:12px;font-weight:600">${label}</div>
+              ${nb !== null ? `<div style="font-size:9px;color:var(--tx2)">${nb} ${unit}</div>` : ''}
+            </div>
+            <div style="font-weight:700;font-size:14px;color:#E74C3C">${f(montant||0)}</div>
+          </div>`).join('')}
+
+        <!-- NET PÉRIODE -->
+        <div style="margin-top:10px;padding-top:10px;border-top:2px solid rgba(245,166,35,.3);display:flex;justify-content:space-between">
+          <span style="font-weight:700;font-size:12px">NET PÉRIODE</span>
+          <span style="font-weight:700;font-size:16px;color:${d.caisse.solde>=0?'#27AE60':'#E74C3C'}">${d.caisse.solde>=0?'+':''}${f(d.caisse.solde)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPLICATION LOGIQUE CAISSE -->
+    <div style="background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.15);border-radius:8px;padding:12px;font-size:11px;color:var(--tx2);line-height:1.8">
+      <b style="color:#3B82F6">💡 Logique financière GIE :</b><br>
+      Toute entrée (cotisations, ventes, versements, taxi) → <b>Caisse</b><br>
+      Toute sortie (dépenses) → <b>Caisse</b><br>
+      Virement Caisse → Banque : sort de la Caisse et entre à la <b>Banque</b>
+    </div>`;
+
+  } catch(e) {
+    el.innerHTML = '<div style="color:#E74C3C;padding:20px">Erreur: '+e.message+'</div>';
+  }
+}
 
 // ╔══════════════════════════════════════════════════════╗
 // ║           GESTION OPÉRATIONS — MODIFIER/SUPPRIMER    ║
