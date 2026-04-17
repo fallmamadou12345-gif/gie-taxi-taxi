@@ -4124,6 +4124,7 @@ function openImport() {
     <div style="display:flex;gap:8px;margin-bottom:14px">
       <button id="imp-type-membres" onclick="setImpType('membres',this)" class="btn btn-primary btn-sm" style="flex:1">👤 Membres</button>
       <button id="imp-type-cotisations" onclick="setImpType('cotisations',this)" class="btn btn-ghost btn-sm" style="flex:1">💳 Cotisations</button>
+      <button id="imp-type-credits" onclick="setImpType('credits',this)" class="btn btn-ghost btn-sm" style="flex:1">🔋 Crédits</button>
       <button id="imp-type-banque" onclick="setImpType('banque',this)" class="btn btn-ghost btn-sm" style="flex:1">🏦 Banque</button>
     </div>
     
@@ -4144,8 +4145,9 @@ function openImport() {
     <div id="imp-preview" style="display:none;margin-bottom:14px"></div>
     
     <div style="background:rgba(39,174,96,.06);border:1px solid rgba(39,174,96,.15);border-radius:8px;padding:12px;font-size:11px;color:var(--tx2)">
-      💡 <b>Astuce :</b> Téléchargez d'abord un export CSV depuis l'app pour voir le format exact.
-      <button onclick="exportCSV()" class="btn btn-ghost btn-sm" style="margin-left:8px;font-size:10px">📤 Exporter CSV membres</button>
+      💡 <b>Astuce :</b> Utilisez le fichier CSV généré par l'app ou téléchargez un modèle.
+      <button onclick="exportCSV()" class="btn btn-ghost btn-sm" style="margin-left:4px;font-size:10px">📤 Export membres</button>
+      <button onclick="downloadCreditsTemplate()" class="btn btn-ghost btn-sm" style="margin-left:4px;font-size:10px">📥 Modèle crédits</button>
     </div>
     
     <div class="btn-row" style="margin-top:14px">
@@ -4160,13 +4162,14 @@ let _importType = 'membres';
 
 function setImpType(type, btn) {
   _importType = type;
-  document.querySelectorAll('#imp-type-membres,#imp-type-cotisations,#imp-type-banque').forEach(b=>{
+  document.querySelectorAll('#imp-type-membres,#imp-type-cotisations,#imp-type-credits,#imp-type-banque').forEach(b=>{
     b.className='btn btn-ghost btn-sm'; b.style.flex='1';
   });
   btn.className='btn btn-primary btn-sm'; btn.style.flex='1';
   const hints = {
     membres: '<b>Format CSV Membres :</b><br>Colonne A: N°, B: Prénom, C: Nom, D: Téléphone<br>Exemple : <code style="color:#F5A623">1,DAOUDA,NDIAYE,776351010</code>',
     cotisations: '<b>Format CSV Cotisations :</b><br>Colonne A: N° Membre, B: Mois, C: Montant<br>Exemple : <code style="color:#F5A623">1,Janvier,2000</code>',
+    credits: '<b>Format CSV Crédits/Ventes :</b><br>CLIENT, TYPE, PRIX_VENTE, MONTANT_RECU, RESTANT, GARANT, DATE_VENTE, STATUT<br>Exemple : <code style="color:#F5A623">IBRAHIMA WADE,BATTERIE,45000,20000,25000,,2025-09-01,En cours</code><br><small>Types: BATTERIE · ELECTROMENAGER · HUILE · ASSURANCE · TELEPHONE</small>',
     banque: '<b>Format CSV Banque :</b><br>Colonne A: Date, B: Désignation, C: Entrée, D: Sortie<br>Exemple : <code style="color:#F5A623">2026-04-16,Versement cotisations,50000,0</code>'
   };
   const h = document.getElementById('imp-format-hint');
@@ -4279,6 +4282,35 @@ async function doImport() {
     }
     toast(`✅ ${imported} cotisations importées${skipped>0?' · '+skipped+' ignorées':''}`);
 
+  } else if (_importType === 'credits') {
+    // Format: CLIENT, TYPE, PRIX_VENTE, MONTANT_RECU, RESTANT, GARANT, DATE_VENTE, STATUT
+    // Skip header row if first col is not a number and looks like a header
+    const startRow = rows[0] && isNaN(parseFloat(rows[0][2])) ? 1 : 0;
+    for (let i = startRow; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 3) continue;
+      const client = (r[0]||'').trim();
+      const type = (r[1]||'AUTRE').trim().toUpperCase();
+      const prix_vente = cleanNum(r[2]);
+      const montant_recu = cleanNum(r[3]) || 0;
+      const garant = (r[5]||'').trim();
+      const date_vente = (r[6]||'').trim() || today();
+      if (!client || !prix_vente) { skipped++; continue; }
+      const restant = prix_vente - montant_recu;
+      const statut = restant <= 0 ? 'Soldé' : 'En cours';
+      try {
+        await POST('/api/credits', {
+          client, telephone: '', type,
+          prix_vente, montant_recu,
+          client_type: 'externe',
+          garant, autorise_par: 'Import CSV',
+          date_vente, mode: 'Import'
+        });
+        imported++;
+      } catch(e) { skipped++; }
+    }
+    toast(`✅ ${imported} crédits importés${skipped>0?' · '+skipped+' ignorés':''}`);
+
   } else if (_importType === 'banque') {
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
@@ -4299,6 +4331,23 @@ async function doImport() {
   await loadAll();
   if (btn) { btn.disabled = false; btn.textContent = '✅ IMPORTER'; }
   closeModal('modal-generic');
+}
+
+function downloadCreditsTemplate() {
+  const headers = ['CLIENT','TYPE','PRIX_VENTE','MONTANT_RECU','RESTANT','GARANT','DATE_VENTE','STATUT'];
+  const exemples = [
+    ['IBRAHIMA WADE','BATTERIE',45000,20000,25000,'','2025-09-01','En cours'],
+    ['MAMADOU TOURE','ELECTROMENAGER',70000,50000,20000,'','2025-09-01','En cours'],
+    ['SIDY','HUILE',13000,0,13000,'','2025-09-01','En cours'],
+    ['MALICK MBAYE','ASSURANCE',21500,18500,3000,'AA339FT','2025-09-01','En cours'],
+  ];
+  const csv = '﻿' + [headers, ...exemples].map(r=>r.map(c=>`"${c}"`).join(',')).join('
+');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'modele_credits_GIE.csv';
+  a.click();
+  toast('📥 Modèle CSV crédits téléchargé');
 }
 
 function exportCSV() {
