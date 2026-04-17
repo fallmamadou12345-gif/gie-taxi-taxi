@@ -721,17 +721,19 @@ app.put('/api/staff/:id/nom', dirOnly, async (req, res) => {
 
 app.get('/api/debug/status', async (req, res) => {
   try {
-    // Force fresh DB instance check
     const dbModule = require('./db');
     const db = await dbModule.getDB();
     const membres = db.prepare('SELECT COUNT(*) as n FROM membres').get().n;
     const staff = db.prepare('SELECT COUNT(*) as n FROM staff').get().n;
     const produits = db.prepare('SELECT COUNT(*) as n FROM produits').get().n;
     const cotisations = db.prepare('SELECT COUNT(*) as n FROM cotisations').get().n;
+    const credits = db.prepare('SELECT COUNT(*) as n FROM credits').get().n;
+    const credits_encours = db.prepare("SELECT COUNT(*) as n FROM credits WHERE statut='En cours'").get().n;
+    const restant = db.prepare("SELECT SUM(restant) as t FROM credits WHERE statut='En cours'").get().t||0;
     const fs = require('fs');
     const dbPath = process.env.DB_PATH || '/data/gie.db';
     const size = fs.existsSync(dbPath) ? (fs.statSync(dbPath).size/1024).toFixed(1) + ' KB' : 'N/A';
-    res.json({ ok: true, membres, staff, produits, cotisations, db_size: size, db_path: dbPath });
+    res.json({ ok:true, membres, staff, produits, cotisations, credits, credits_encours, restant_total: restant, db_size: size, db_path: dbPath });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

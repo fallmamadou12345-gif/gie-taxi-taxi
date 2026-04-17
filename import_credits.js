@@ -1,114 +1,103 @@
-// Importer les crédits historiques dans la DB
-// node import_credits.js
-const S = require('./node_modules/sql.js');
-const f = require('fs');
-const DB = process.env.DB_PATH || '/data/gie.db';
-
-const credits = [
-  // ── HUILE ──
-  {client:'SIDY', type:'HUILE', prix_vente:13000, montant_recu:0, garant:''},
-  {client:'AZIZ NDIONE', type:'HUILE', prix_vente:13000, montant_recu:0, garant:''},
-
-  // ── ÉLECTROMÉNAGER ──
-  {client:'MAMADOU TOURE', type:'ELECTROMENAGER', prix_vente:70000, montant_recu:50000, garant:''},
-  {client:'MODOU BOU ALADJI YOFF', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:60000, garant:''},
-  {client:'MADIOUGUE ISSA', type:'ELECTROMENAGER', prix_vente:100000, montant_recu:0, garant:''},
-  {client:'IBRAHIMA SENE', type:'ELECTROMENAGER', prix_vente:120000, montant_recu:100000, garant:''},
-  {client:'MODOU NDIAYE', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:60000, garant:''},
-  {client:'AMADOU GUEYE BAMBA', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:40000, garant:''},
-  {client:'AMADOU DIA', type:'ELECTROMENAGER', prix_vente:70000, montant_recu:40000, garant:''},
-  {client:'ISSA MOUSTAPHA DIOUF', type:'ELECTROMENAGER', prix_vente:60000, montant_recu:50000, garant:''},
-  {client:'ADAMA SARR', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:65000, garant:'ISSA WADE'},
-  {client:'BIRANE', type:'ELECTROMENAGER', prix_vente:70000, montant_recu:40000, garant:''},
-  {client:'MOUSTAPHA TINE', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:55000, garant:''},
-  {client:'MODOU DIOUF', type:'ELECTROMENAGER', prix_vente:100000, montant_recu:70000, garant:''},
-  {client:'OMAR AZIZ NDIONE', type:'ELECTROMENAGER', prix_vente:80000, montant_recu:55000, garant:''},
-  {client:'MODOU BAMBA', type:'ELECTROMENAGER', prix_vente:90000, montant_recu:40000, garant:''},
-  {client:'FALLOU DAOUDA DIOUF', type:'ELECTROMENAGER', prix_vente:90000, montant_recu:75000, garant:''},
-  {client:'IBRAHIMA BAMBA', type:'ELECTROMENAGER', prix_vente:90000, montant_recu:75000, garant:''},
-  {client:'ABDOU DIOUF', type:'ELECTROMENAGER', prix_vente:72500, montant_recu:30000, garant:''},
-  {client:'KEBA MOUSTAPHA DIOUF', type:'ELECTROMENAGER', prix_vente:65000, montant_recu:20000, garant:''},
-  {client:'BIRAME', type:'ELECTROMENAGER', prix_vente:90000, montant_recu:10000, garant:''},
-  {client:'KHAKHIM MODJI', type:'ELECTROMENAGER', prix_vente:90000, montant_recu:10000, garant:''},
-  {client:'CERIF CORRE', type:'ELECTROMENAGER', prix_vente:215000, montant_recu:0, garant:''},
-
-  // ── BATTERIES ──
-  {client:'ABDOU NAMA', type:'BATTERIE', prix_vente:42500, montant_recu:33000, garant:''},
-  {client:'THOY YELLI', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'GORA POUYE', type:'BATTERIE', prix_vente:40000, montant_recu:20000, garant:'MOHAMED NDIOUR'},
-  {client:'AROUNA MOUSTAPHA DIOUF', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'SERIGNE CISSE', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'MODOU NGOM', type:'BATTERIE', prix_vente:42000, montant_recu:30000, garant:''},
-  {client:'MACOUBA BAMBA', type:'BATTERIE', prix_vente:40000, montant_recu:18000, garant:''},
-  {client:'IBRAHIMA NDIAYE', type:'BATTERIE', prix_vente:40000, montant_recu:20000, garant:'NAR NDIAYE'},
-  {client:'BADARA NDIAYE', type:'BATTERIE', prix_vente:45000, montant_recu:10000, garant:''},
-  {client:'RAMA', type:'BATTERIE', prix_vente:45000, montant_recu:35000, garant:''},
-  {client:'MALICK MBAYE', type:'BATTERIE', prix_vente:45000, montant_recu:30000, garant:''},
-  {client:'GORA GUEYE', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'KHALY THIAM', type:'BATTERIE', prix_vente:40000, montant_recu:20000, garant:''},
-  {client:'IBRAHIMA SENE', type:'BATTERIE', prix_vente:45000, montant_recu:30000, garant:''},
-  {client:'SENY NGOM', type:'BATTERIE', prix_vente:45000, montant_recu:30000, garant:''},
-  {client:'AZIZ NDIONE', type:'BATTERIE', prix_vente:45000, montant_recu:20000, garant:''},
-  {client:'CHEIKH A.B. THIAM', type:'BATTERIE', prix_vente:45000, montant_recu:30000, garant:''},
-  {client:'INCONNU', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-  {client:'IBOU SY', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-  {client:'MODOU MOUSTAPHA DIOUF', type:'BATTERIE', prix_vente:40000, montant_recu:15000, garant:''},
-  {client:'MAMADOU SENE', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'IBRAHIMA SENE (2)', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-  {client:'MOUSSA THIAW LAYE', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'BADARA MOUSTAPHA DIOUF', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'CERIF CORREA', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-  {client:'IBRAHIMA BOYE', type:'BATTERIE', prix_vente:40000, montant_recu:30000, garant:''},
-  {client:'ELADJI SENE', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-  {client:'MOR WANE', type:'BATTERIE', prix_vente:45000, montant_recu:0, garant:''},
-  {client:'IBOU SY (AA743SQ)', type:'BATTERIE', prix_vente:40000, montant_recu:10000, garant:''},
-
-  // ── ASSURANCE ──
-  {client:'MALICK MBAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:18500, garant:'AA339FT'},
-  {client:'C M T T', type:'ASSURANCE', prix_vente:46076, montant_recu:500, garant:'025JZ'},
-  {client:'MALICK MBAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:21000, garant:'AA339FT'},
-  {client:'BASSIROU CISSE', type:'ASSURANCE', prix_vente:21500, montant_recu:5000, garant:'DK2528AM'},
-  {client:'MALICK MBAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:15000, garant:'AA339FT'},
-  {client:'MALICK MBAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:10000, garant:'AA339FT'},
-  {client:'IBRAHIMA WADE', type:'ASSURANCE', prix_vente:16500, montant_recu:0, garant:'AA804JE'},
-  {client:'BASSIROU CISSE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'DK2528AM'},
-  {client:'C M T T', type:'ASSURANCE', prix_vente:16500, montant_recu:0, garant:'AA777JE'},
-  {client:'IBRAHIMA FALL', type:'ASSURANCE', prix_vente:21500, montant_recu:21433, garant:'AA341TQ'},
-  {client:'MBAYE LO', type:'ASSURANCE', prix_vente:16500, montant_recu:10000, garant:'DK0687AY'},
-  {client:'IBRAHIMA WADE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AA250YF'},
-  {client:'IBRAHIMA WADE', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'804JE'},
-  {client:'CMTT', type:'ASSURANCE', prix_vente:16318, montant_recu:10000, garant:'AA169JF'},
-  {client:'MALICK MBAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AA339FT'},
-  {client:'GIE', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'AA292RZ'},
-  {client:'SERIGNE MODOU MBODJI', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AA922TQ'},
-  {client:'C M TT', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'25'},
-  {client:'LAITY NDIAYE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AB103DW'},
-  {client:'CMTT', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'AA512SF'},
-  {client:'BASSIROU CISSE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'DK2528AM'},
-  {client:'SENIRAN AUTO', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'AA777JE'},
-  {client:'MOR WANE', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AA878QD'},
-  {client:'IBRAHIMA FALL', type:'ASSURANCE', prix_vente:21500, montant_recu:0, garant:'AA341TQ'},
-  {client:'TNF TRANSPORT NDONGO FALL', type:'ASSURANCE', prix_vente:16318, montant_recu:0, garant:'AA081JZ'},
+const S=require('./node_modules/sql.js');
+const f=require('fs');
+const DB=process.env.DB_PATH||'/data/gie.db';
+const data=[
+['SIDY','HUILE',13000,0],
+['AZIZ NDIONE','HUILE',13000,0],
+['MAMADOU TOURE','ELECTROMENAGER',70000,50000],
+['MODOU BOU ALADJI YOFF','ELECTROMENAGER',80000,60000],
+['MADIOUGUE ISSA','ELECTROMENAGER',100000,0],
+['IBRAHIMA SENE','ELECTROMENAGER',120000,100000],
+['MODOU NDIAYE','ELECTROMENAGER',80000,60000],
+['AMADOU GUEYE BAMBA','ELECTROMENAGER',80000,40000],
+['AMADOU DIA','ELECTROMENAGER',70000,40000],
+['ISSA MOUSTAPHA DIOUF','ELECTROMENAGER',60000,50000],
+['ADAMA SARR','ELECTROMENAGER',80000,65000],
+['BIRANE','ELECTROMENAGER',70000,40000],
+['MOUSTAPHA TINE','ELECTROMENAGER',80000,55000],
+['MODOU DIOUF','ELECTROMENAGER',100000,70000],
+['OMAR AZIZ NDIONE','ELECTROMENAGER',80000,55000],
+['MODOU BAMBA','ELECTROMENAGER',90000,40000],
+['FALLOU DAOUDA DIOUF','ELECTROMENAGER',90000,75000],
+['IBRAHIMA BAMBA','ELECTROMENAGER',90000,75000],
+['ABDOU DIOUF','ELECTROMENAGER',72500,30000],
+['KEBA MOUSTAPHA DIOUF','ELECTROMENAGER',65000,20000],
+['BIRAME','ELECTROMENAGER',90000,10000],
+['KHAKHIM MODJI','ELECTROMENAGER',90000,10000],
+['CERIF CORRE','ELECTROMENAGER',215000,0],
+['ABDOU NAMA','BATTERIE',42500,33000],
+['THOY YELLI','BATTERIE',40000,30000],
+['GORA POUYE','BATTERIE',40000,20000],
+['AROUNA MOUSTAPHA DIOUF','BATTERIE',40000,30000],
+['SERIGNE CISSE','BATTERIE',40000,30000],
+['MODOU NGOM','BATTERIE',42000,30000],
+['MACOUBA BAMBA','BATTERIE',40000,18000],
+['IBRAHIMA NDIAYE','BATTERIE',40000,20000],
+['BADARA NDIAYE','BATTERIE',45000,10000],
+['RAMA','BATTERIE',45000,35000],
+['MALICK MBAYE','BATTERIE',45000,30000],
+['GORA GUEYE','BATTERIE',40000,30000],
+['KHALY THIAM','BATTERIE',40000,20000],
+['IBRAHIMA SENE BAT','BATTERIE',45000,30000],
+['SENY NGOM','BATTERIE',45000,30000],
+['AZIZ NDIONE BAT','BATTERIE',45000,20000],
+['CHEIKH AB THIAM','BATTERIE',45000,30000],
+['INCONNU','BATTERIE',40000,10000],
+['IBOU SY','BATTERIE',40000,10000],
+['MODOU MOUSTAPHA DIOUF','BATTERIE',40000,15000],
+['MAMADOU SENE','BATTERIE',40000,30000],
+['IBRAHIMA SENE 2','BATTERIE',40000,10000],
+['MOUSSA THIAW LAYE','BATTERIE',40000,30000],
+['BADARA MOUSTAPHA DIOUF','BATTERIE',40000,30000],
+['CERIF CORREA','BATTERIE',40000,10000],
+['IBRAHIMA BOYE','BATTERIE',40000,30000],
+['ELADJI SENE','BATTERIE',40000,10000],
+['MOR WANE BAT','BATTERIE',45000,0],
+['IBOU SY AA743SQ','BATTERIE',40000,10000],
+['MALICK MBAYE ASS1','ASSURANCE',21500,18500],
+['C M T T 025JZ','ASSURANCE',46076,500],
+['MALICK MBAYE ASS2','ASSURANCE',21500,21000],
+['BASSIROU CISSE DK2528AM','ASSURANCE',21500,5000],
+['MALICK MBAYE ASS3','ASSURANCE',21500,15000],
+['MALICK MBAYE ASS4','ASSURANCE',21500,10000],
+['IBRAHIMA WADE AA804JE','ASSURANCE',16500,0],
+['BASSIROU CISSE ASS2','ASSURANCE',21500,0],
+['C M T T AA777JE','ASSURANCE',16500,0],
+['IBRAHIMA FALL AA341TQ','ASSURANCE',21500,21433],
+['MBAYE LO DK0687AY','ASSURANCE',16500,10000],
+['IBRAHIMA WADE AA250YF','ASSURANCE',21500,0],
+['IBRAHIMA WADE 804JE','ASSURANCE',16318,0],
+['CMTT AA169JF','ASSURANCE',16318,10000],
+['MALICK MBAYE ASS5','ASSURANCE',21500,0],
+['GIE AA292RZ','ASSURANCE',16318,0],
+['SERIGNE MODOU MBODJI','ASSURANCE',21500,0],
+['C M TT 25','ASSURANCE',16318,0],
+['LAITY NDIAYE AB103DW','ASSURANCE',21500,0],
+['CMTT AA512SF','ASSURANCE',16318,0],
+['BASSIROU CISSE ASS3','ASSURANCE',21500,0],
+['SENIRAN AUTO AA777JE','ASSURANCE',16318,0],
+['MOR WANE AA878QD','ASSURANCE',21500,0],
+['IBRAHIMA FALL AA341TQ 2','ASSURANCE',21500,0],
+['TNF TRANSPORT AA081JZ','ASSURANCE',16318,0]
 ];
-
-S().then(SQL => {
-  const db = new SQL.Database(f.readFileSync(DB));
-  const ins = db.prepare(`INSERT INTO credits(client,telephone,type,produit_id,prix_vente,montant_recu,restant,statut,client_type,membre_id,garant,garant_id,autorise_par,date_vente)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
-
-  let ok = 0;
-  credits.forEach(c => {
-    const restant = c.prix_vente - c.montant_recu;
-    const statut = restant <= 0 ? 'Soldé' : 'En cours';
-    ins.run(c.client,'',c.type,null,c.prix_vente,c.montant_recu,restant,statut,'externe',null,c.garant||'',null,'Import historique','2025-09-01');
+S().then(SQL=>{
+  const db=new SQL.Database(f.readFileSync(DB));
+  let ok=0,skip=0;
+  data.forEach(function(row){
+    var client=String(row[0]||'').trim();
+    var type=String(row[1]||'').trim();
+    var prix=Number(row[2])||0;
+    var verse=Number(row[3])||0;
+    if(!client||!type||!prix){skip++;return;}
+    var restant=prix-verse;
+    var statut=restant<=0?'Solde':'En cours';
+    db.run('INSERT INTO credits(client,telephone,type,produit_id,prix_vente,montant_recu,restant,statut,client_type,membre_id,garant,garant_id,autorise_par,date_vente)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[client,'',type,null,prix,verse,restant,statut,'externe',null,'',null,'Import','2025-09-01']);
     ok++;
   });
-
-  const total = db.exec("SELECT COUNT(*) FROM credits")[0].values[0][0];
-  const encours = db.exec("SELECT COUNT(*),SUM(restant) FROM credits WHERE statut='En cours'")[0].values[0];
-  
-  f.writeFileSync(DB, Buffer.from(db.export()));
-  console.log(`✅ ${ok} crédits importés`);
-  console.log(`📊 Total DB: ${total} crédits`);
-  console.log(`⚠️  En cours: ${encours[0]} crédits · Restant: ${Number(encours[1]).toLocaleString('fr-FR')} F`);
-});
+  var res=db.exec("SELECT COUNT(*) as n FROM credits WHERE statut='En cours'");
+  var res2=db.exec("SELECT SUM(restant) FROM credits WHERE statut='En cours'");
+  f.writeFileSync(DB,Buffer.from(db.export()));
+  console.log('OK imports:'+ok+' skips:'+skip);
+  console.log('En cours:'+res[0].values[0][0]);
+  console.log('Total restant:'+res2[0].values[0][0]);
+}).catch(function(e){console.error('ERREUR:',e.message);});
