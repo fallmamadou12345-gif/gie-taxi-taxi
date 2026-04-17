@@ -3724,12 +3724,63 @@ async function gopLoad(type) {
     } else if(type === 'reprises') {
       const data = await GET('/api/reprises');
       el.innerHTML = `
+        <!-- STATS -->
         <div class="stat-grid" style="margin-bottom:14px">
           <div class="stat-card sc-b">
             <div class="stat-icon">🔄</div>
             <div class="stat-label">Total reprises</div>
             <div class="stat-value">${data.total_nb}</div>
-            <div class="stat-sub">${f(data.total_valeur)} de valeur</div>
+            <div class="stat-sub">${f(data.total_valeur)} de valeur récupérée</div>
+          </div>
+          <div class="stat-card sc-or">
+            <div class="stat-icon">📦</div>
+            <div class="stat-label">Valeur moyenne</div>
+            <div class="stat-value" style="font-size:16px">${data.total_nb>0?f(Math.round(data.total_valeur/data.total_nb)):'—'}</div>
+            <div class="stat-sub">par reprise</div>
+          </div>
+        </div>
+
+        <!-- FORMULAIRE SAISIE REPRISE -->
+        <div class="form-card" style="margin-bottom:16px">
+          <div class="form-title">🔄 Enregistrer une reprise</div>
+          <div class="form-grid">
+            <div class="form-group ac-wrap" style="position:relative">
+              <label>Client (membre ou nom libre)</label>
+              <input class="form-input" id="rp-client-input" placeholder="🔍 Taper nom ou téléphone..."
+                oninput="acReprise(this.value)" autocomplete="off" style="font-size:14px">
+              <div class="ac-list" id="rp-client-ac"></div>
+              <input type="hidden" id="rp-client-tel">
+            </div>
+            <div class="form-group">
+              <label>Type de produit repris</label>
+              <select class="form-input" id="rp-type">
+                <option value="BATTERIE">🔋 Batterie</option>
+                <option value="TELEPHONE">📱 Téléphone</option>
+                <option value="ELECTROMENAGER">🔌 Électroménager</option>
+                <option value="AUTRE">📦 Autre</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>💰 Valeur de reprise (FCFA)</label>
+              <input class="form-input" id="rp-valeur" type="number" placeholder="Ex: 8000" min="0"
+                style="font-size:16px;font-weight:700;color:#3B82F6">
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input class="form-input" id="rp-date" type="date" value="${today()}">
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label>Description (état, modèle, observations...)</label>
+              <input class="form-input" id="rp-desc"
+                placeholder="Ex: Batterie SOLANCE 12V usagée, 2 ans d'utilisation, bonne condition..."
+                style="font-size:13px">
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveReprise()" style="font-size:14px;padding:12px 28px">
+              🔄 ENREGISTRER LA REPRISE
+            </button>
+            <button class="btn btn-ghost" onclick="resetRepriseForm()">Annuler</button>
           </div>
         </div>
         <div class="table-card">
@@ -4342,7 +4393,6 @@ function downloadCreditsTemplate() {
     ['MALICK MBAYE','ASSURANCE',21500,18500,3000,'AA339FT','2025-09-01','En cours'],
   ];
   const csv = [headers, ...exemples].map(r=>r.map(c=>'"'+String(c)+'"').join(',')).join('\n');
-');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'modele_credits_GIE.csv';
@@ -4511,6 +4561,72 @@ async function ctrlSaveVersement(creditId, clientNom, restant) {
     showRecu({ref:r.ref||'', date, client:clientNom, type:'VERSEMENT', designation:'Versement crédit', mode, montant, note});
     await loadAll();
   } catch(e) { toast('❌ '+e.message, 'e'); }
+}
+
+
+// ── REPRISES ──
+function acReprise(q) {
+  if (q.length < 1) { document.getElementById('rp-client-ac').classList.remove('show'); return; }
+  const ql = q.toLowerCase();
+  const r = STATE.membres.filter(m =>
+    (m.prenom+' '+m.nom).toLowerCase().includes(ql) || m.telephone.includes(q)
+  ).slice(0,6);
+  const ac = document.getElementById('rp-client-ac');
+  if (!r.length) {
+    // Permettre entrée libre
+    ac.innerHTML = `<div class="ac-item" onclick="selRepriseClient('${q.replace(/'/g,"\'")}','')">
+      <div style="font-size:12px">➕ Utiliser "<b>${q}</b>" comme nom</div>
+    </div>`;
+    ac.classList.add('show'); return;
+  }
+  ac.innerHTML = r.map(m => `
+    <div class="ac-item" onclick="selRepriseClient('${m.prenom} ${m.nom}','${m.telephone}')">
+      <div style="font-weight:600;font-size:13px">${m.prenom} ${m.nom}</div>
+      <div style="font-size:10px;color:var(--tx2)">📞 ${m.telephone}</div>
+    </div>`).join('');
+  ac.classList.add('show');
+}
+
+function selRepriseClient(nom, tel) {
+  document.getElementById('rp-client-input').value = nom;
+  document.getElementById('rp-client-tel').value = tel;
+  document.getElementById('rp-client-ac').classList.remove('show');
+}
+
+async function saveReprise() {
+  const client = document.getElementById('rp-client-input').value.trim();
+  const telephone = document.getElementById('rp-client-tel').value;
+  const produit_type = document.getElementById('rp-type').value;
+  const valeur = parseInt(document.getElementById('rp-valeur').value) || 0;
+  const date = document.getElementById('rp-date').value;
+  const desc = document.getElementById('rp-desc').value.trim();
+
+  if (!client) { toast('⚠️ Client requis', 'w'); return; }
+  if (!valeur || valeur < 100) { toast('⚠️ Valeur de reprise requise (min 100 F)', 'w'); return; }
+
+  try {
+    await POST('/api/reprises', {
+      client, telephone, produit_type,
+      valeur_reprise: valeur,
+      description: desc || `Reprise ${produit_type}`,
+      date
+    });
+    toast(`✅ Reprise enregistrée — ${client} · ${f(valeur)}`);
+    resetRepriseForm();
+    // Recharger l'onglet reprises
+    await gopLoad('reprises');
+  } catch(e) { toast('❌ ' + e.message, 'e'); }
+}
+
+function resetRepriseForm() {
+  ['rp-client-input','rp-valeur','rp-desc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const tel = document.getElementById('rp-client-tel');
+  if (tel) tel.value = '';
+  const ac = document.getElementById('rp-client-ac');
+  if (ac) ac.classList.remove('show');
 }
 
 

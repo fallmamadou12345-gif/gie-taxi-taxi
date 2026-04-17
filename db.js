@@ -305,13 +305,17 @@ async function reloadFromDisk() {
   const SQL = await initSqlJs();
   if (!fs.existsSync(DB_PATH)) throw new Error('DB file not found: ' + DB_PATH);
   const freshDb = new SQL.Database(fs.readFileSync(DB_PATH));
-  // Reset both the wrapper and the underlying sql.js instance
+  // Forcer la réinitialisation complète
   dbWrapper = null;
   sqlDb = freshDb;
   dbWrapper = makeWrapper(freshDb);
+  // Appliquer les migrations sur la nouvelle instance
+  try { dbWrapper.exec("ALTER TABLE produits ADD COLUMN image_b64 TEXT DEFAULT ''"); } catch(e) {}
+  try { dbWrapper.exec("CREATE TABLE IF NOT EXISTS reprises(id INTEGER PRIMARY KEY AUTOINCREMENT,credit_id INTEGER,client TEXT NOT NULL,telephone TEXT DEFAULT '',produit_type TEXT DEFAULT 'BATTERIE',description TEXT DEFAULT '',valeur_reprise INTEGER NOT NULL,date TEXT NOT NULL,saisi_par TEXT DEFAULT '',created_at TEXT DEFAULT(datetime('now')))"); } catch(e) {}
   const n = dbWrapper.prepare('SELECT COUNT(*) as n FROM membres').get().n;
   const s = dbWrapper.prepare('SELECT COUNT(*) as n FROM staff').get().n;
-  console.log(`✅ DB rechargée depuis disque: ${n} membres, ${s} staff`);
+  const c = dbWrapper.prepare('SELECT COUNT(*) as n FROM credits').get().n;
+  console.log(`✅ DB rechargée: ${n} membres, ${s} staff, ${c} credits`);
   return dbWrapper;
 }
 
